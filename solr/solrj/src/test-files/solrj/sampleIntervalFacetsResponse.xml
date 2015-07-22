@@ -191,14 +191,18 @@
   <lst name="facet_dates"/>
   <lst name="facet_ranges">
     <lst name="price">
-      <int name="[0,10]">3</int>
-      <int name="(10,100]">4</int>
-      <int name="(100,*]">9</int>
+      <lst name="counts">
+        <int name="[0,10]">3</int>
+        <int name="(10,100]">4</int>
+        <int name="(100,*]">9</int>
+      </lst>
     </lst>
     <lst name="popularity">
-      <int name="bad">3</int>
-      <int name="average">10</int>
-      <int name="good">2</int>
+      <lst name="counts">
+        <int name="bad">3</int>
+        <int name="average">10</int>
+        <int name="good">2</int>
+      </lst>
     </lst>
   </lst>
 </lst>
