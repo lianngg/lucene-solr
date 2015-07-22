@@ -205,9 +205,9 @@ public class TestIntervalFaceting extends SolrTestCaseJ4 {
             "facet.range", "test_l_dv", "f.test_s_dv.facet.range.set", "[cat,dog]",
             "f.test_l_dv.facet.range.set", "[3,6]",
             "f.test_l_dv.facet.range.set", "[5,9]"),
-        "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/int[@name='[cat,dog]'][.=5]",
-        "//lst[@name='facet_ranges']/lst[@name='test_l_dv']/int[@name='[3,6]'][.=4]",
-        "//lst[@name='facet_ranges']/lst[@name='test_l_dv']/int[@name='[5,9]'][.=5]");
+        "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/lst[@name='counts']/int[@name='[cat,dog]'][.=5]",
+        "//lst[@name='facet_ranges']/lst[@name='test_l_dv']/lst[@name='counts']/int[@name='[3,6]'][.=4]",
+        "//lst[@name='facet_ranges']/lst[@name='test_l_dv']/lst[@name='counts']/int[@name='[5,9]'][.=5]");
     
   }
   
@@ -229,9 +229,9 @@ public class TestIntervalFaceting extends SolrTestCaseJ4 {
             "facet.range", "test_l", "f.test_s.facet.range.set", "[cat,dog]",
             "f.test_l.facet.range.set", "[3,6]",
             "f.test_l.facet.range.set", "[5,9]"),
-        "//lst[@name='facet_ranges']/lst[@name='test_s']/int[@name='[cat,dog]'][.=5]",
-        "//lst[@name='facet_ranges']/lst[@name='test_l']/int[@name='[3,6]'][.=4]",
-        "//lst[@name='facet_ranges']/lst[@name='test_l']/int[@name='[5,9]'][.=5]");
+        "//lst[@name='facet_ranges']/lst[@name='test_s']/lst[@name='counts']/int[@name='[cat,dog]'][.=5]",
+        "//lst[@name='facet_ranges']/lst[@name='test_l']/lst[@name='counts']/int[@name='[3,6]'][.=4]",
+        "//lst[@name='facet_ranges']/lst[@name='test_l']/lst[@name='counts']/int[@name='[5,9]'][.=5]");
     
   }
 
@@ -320,8 +320,8 @@ public class TestIntervalFaceting extends SolrTestCaseJ4 {
     try {
       SolrQueryResponse rsp = h.queryAndResponse("standard", req);
       NamedList<Object> facetQueries = (NamedList<Object>) ((NamedList<Object>) rsp.getValues().get("facet_counts")).get("facet_queries");
-      NamedList<Object> facetIntervals = (NamedList<Object>) ((NamedList<Object>) (NamedList<Object>) ((NamedList<Object>) rsp.getValues().get("facet_counts"))
-          .get("facet_ranges")).get(field);
+      NamedList<Object> facetIntervals = (NamedList<Object>) ((NamedList<Object>) ((NamedList<Object>) (NamedList<Object>) ((NamedList<Object>) rsp
+          .getValues().get("facet_counts")).get("facet_ranges")).get(field)).get("counts");
       assertEquals("Responses don't have the same number of facets: \n" + facetQueries + "\n" + facetIntervals,
           facetQueries.size(), facetIntervals.size());
       for (int i = 0; i < facetIntervals.size(); i++) {
@@ -470,7 +470,7 @@ public class TestIntervalFaceting extends SolrTestCaseJ4 {
         "f.test_l_dv.facet.range.set", "[3,6]",
         "f.test_l_dv.facet.range.set", "[5,9]"),
       "count(//lst[@name='facet_ranges']/lst)=1",
-      "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/int[@name='[cat,dog]'][.=5]");
+      "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/lst[@name='counts']/int[@name='[cat,dog]'][.=5]");
     
     // existing fields in facet.range with no intervals defined
     assertQEx("Unexpected exception", 
@@ -487,8 +487,8 @@ public class TestIntervalFaceting extends SolrTestCaseJ4 {
         "facet.range", "test_l_dv",
         "facet.range.set", "[1,2]"),
       "count(//lst[@name='facet_ranges']/lst)=2",
-      "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/int[@name='[1,2]'][.=0]",
-      "//lst[@name='facet_ranges']/lst[@name='test_l_dv']/int[@name='[1,2]'][.=2]"
+      "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/lst[@name='counts']/int[@name='[1,2]'][.=0]",
+      "//lst[@name='facet_ranges']/lst[@name='test_l_dv']/lst[@name='counts']/int[@name='[1,2]'][.=2]"
       );
     
     // multiple facet.range.set
@@ -499,12 +499,12 @@ public class TestIntervalFaceting extends SolrTestCaseJ4 {
         "facet.range.set", "[2,3]",
         "facet.range.set", "[3,4]"),
       "count(//lst[@name='facet_ranges']/lst)=2",
-      "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/int[@name='[1,2]'][.=0]",
-      "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/int[@name='[2,3]'][.=0]",
-      "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/int[@name='[3,4]'][.=0]",
-      "//lst[@name='facet_ranges']/lst[@name='test_l_dv']/int[@name='[1,2]'][.=2]",
-      "//lst[@name='facet_ranges']/lst[@name='test_l_dv']/int[@name='[2,3]'][.=2]",
-      "//lst[@name='facet_ranges']/lst[@name='test_l_dv']/int[@name='[3,4]'][.=2]"
+      "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/lst[@name='counts']/int[@name='[1,2]'][.=0]",
+      "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/lst[@name='counts']/int[@name='[2,3]'][.=0]",
+      "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/lst[@name='counts']/int[@name='[3,4]'][.=0]",
+      "//lst[@name='facet_ranges']/lst[@name='test_l_dv']/lst[@name='counts']/int[@name='[1,2]'][.=2]",
+      "//lst[@name='facet_ranges']/lst[@name='test_l_dv']/lst[@name='counts']/int[@name='[2,3]'][.=2]",
+      "//lst[@name='facet_ranges']/lst[@name='test_l_dv']/lst[@name='counts']/int[@name='[3,4]'][.=2]"
       );
     
     // use of facet.range.set and override
@@ -515,10 +515,10 @@ public class TestIntervalFaceting extends SolrTestCaseJ4 {
         "f.test_l_dv.facet.range.set", "[3,4]",
         "f.test_l_dv.facet.range.set", "[4,5]"),
       "count(//lst[@name='facet_ranges']/lst)=2",
-      "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/int[@name='[1,2]'][.=0]",
-      "count(//lst[@name='facet_ranges']/lst[@name='test_l_dv']/int)=2", // interval [1,2] not present
-      "//lst[@name='facet_ranges']/lst[@name='test_l_dv']/int[@name='[3,4]'][.=2]",
-      "//lst[@name='facet_ranges']/lst[@name='test_l_dv']/int[@name='[4,5]'][.=2]"
+      "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/lst[@name='counts']/int[@name='[1,2]'][.=0]",
+      "count(//lst[@name='facet_ranges']/lst[@name='test_l_dv']/lst[@name='counts']/int)=2", // interval [1,2] not present
+      "//lst[@name='facet_ranges']/lst[@name='test_l_dv']/lst[@name='counts']/int[@name='[3,4]'][.=2]",
+      "//lst[@name='facet_ranges']/lst[@name='test_l_dv']/lst[@name='counts']/int[@name='[4,5]'][.=2]"
       );
     
     assertQ(req("q", "*:*", "facet", "true",
@@ -529,12 +529,12 @@ public class TestIntervalFaceting extends SolrTestCaseJ4 {
         "facet.range.set", "[3,4]",
         "f.test_s_dv.facet.range.set", "[cat,dog]"),
       "count(//lst[@name='facet_ranges']/lst)=2",
-      "count(//lst[@name='facet_ranges']/lst[@name='test_s_dv']/int)=1", // only [cat,dog] in test_s_dv
-      "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/int[@name='[cat,dog]'][.=5]",
-      "count(//lst[@name='facet_ranges']/lst[@name='test_l_dv']/int)=3",
-      "//lst[@name='facet_ranges']/lst[@name='test_l_dv']/int[@name='[1,2]'][.=2]",
-      "//lst[@name='facet_ranges']/lst[@name='test_l_dv']/int[@name='[2,3]'][.=2]",
-      "//lst[@name='facet_ranges']/lst[@name='test_l_dv']/int[@name='[3,4]'][.=2]"
+      "count(//lst[@name='facet_ranges']/lst[@name='test_s_dv']/lst[@name='counts']/int)=1", // only [cat,dog] in test_s_dv
+      "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/lst[@name='counts']/int[@name='[cat,dog]'][.=5]",
+      "count(//lst[@name='facet_ranges']/lst[@name='test_l_dv']/lst[@name='counts']/int)=3",
+      "//lst[@name='facet_ranges']/lst[@name='test_l_dv']/lst[@name='counts']/int[@name='[1,2]'][.=2]",
+      "//lst[@name='facet_ranges']/lst[@name='test_l_dv']/lst[@name='counts']/int[@name='[2,3]'][.=2]",
+      "//lst[@name='facet_ranges']/lst[@name='test_l_dv']/lst[@name='counts']/int[@name='[3,4]'][.=2]"
       );
     
     // use of facet.range.set with wrong field type
@@ -619,27 +619,27 @@ public class TestIntervalFaceting extends SolrTestCaseJ4 {
     assertQ(req("q", "*:*", "facet", "true", "facet.range", "test_s_dv",
         "f.test_s_dv.facet.range.set", "{!key=foo}[bird,bird]",
         "f.test_s_dv.facet.range.set", "{!key='bar'}(bird,dog)"),
-        "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/int[@name='foo'][.=1]",
-        "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/int[@name='bar'][.=3]");
+        "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/lst[@name='counts']/int[@name='foo'][.=1]",
+        "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/lst[@name='counts']/int[@name='bar'][.=3]");
     
     assertQ(req("q", "*:*", "facet", "true", "facet.range", "test_s_dv",
         "f.test_s_dv.facet.range.set", "{!key=Birds}[bird,bird]",
         "f.test_s_dv.facet.range.set", "{!key='foo bar'}(bird,dog)"),
-        "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/int[@name='Birds'][.=1]",
-        "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/int[@name='foo bar'][.=3]");
+        "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/lst[@name='counts']/int[@name='Birds'][.=1]",
+        "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/lst[@name='counts']/int[@name='foo bar'][.=3]");
     
     assertQ(req("q", "*:*", "facet", "true", "facet.range", "test_s_dv",
         "f.test_s_dv.facet.range.set", "{!key=$p}[bird,bird]",
         "p", "foo bar"),
-        "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/int[@name='foo bar'][.=1]");
+        "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/lst[@name='counts']/int[@name='foo bar'][.=1]");
     
     assertQ(req("q", "*:*", "facet", "true", "facet.range", "test_s_dv",
         "f.test_s_dv.facet.range.set", "{!key='[bird,\\}'}[bird,*]",
         "f.test_s_dv.facet.range.set", "{!key='\\{bird,dog\\}'}(bird,dog)",
         "f.test_s_dv.facet.range.set", "{!key='foo'}(bird,dog})"),
-        "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/int[@name='[bird,}'][.=9]",
-        "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/int[@name='{bird,dog}'][.=3]",
-        "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/int[@name='foo'][.=7]");
+        "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/lst[@name='counts']/int[@name='[bird,}'][.=9]",
+        "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/lst[@name='counts']/int[@name='{bird,dog}'][.=3]",
+        "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/lst[@name='counts']/int[@name='foo'][.=7]");
     
   }
 
@@ -860,9 +860,9 @@ public class TestIntervalFaceting extends SolrTestCaseJ4 {
             "facet.range", "{!key=bar}test_l_dv", "f.test_s_dv.facet.range.set", "[cat,dog]",
             "f.test_l_dv.facet.range.set", "[0,1]",
             "f.test_l_dv.facet.range.set", "[2,*]"),
-        "//lst[@name='facet_ranges']/lst[@name='foo']/int[@name='[cat,dog]'][.=2]",
-        "//lst[@name='facet_ranges']/lst[@name='bar']/int[@name='[0,1]'][.=1]",
-        "//lst[@name='facet_ranges']/lst[@name='bar']/int[@name='[2,*]'][.=1]");
+        "//lst[@name='facet_ranges']/lst[@name='foo']/lst[@name='counts']/int[@name='[cat,dog]'][.=2]",
+        "//lst[@name='facet_ranges']/lst[@name='bar']/lst[@name='counts']/int[@name='[0,1]'][.=1]",
+        "//lst[@name='facet_ranges']/lst[@name='bar']/lst[@name='counts']/int[@name='[2,*]'][.=1]");
   }
   
   
@@ -883,22 +883,22 @@ public class TestIntervalFaceting extends SolrTestCaseJ4 {
     assertQ(req("q", "*:*", "facet", "true", "facet.range", "test_s_dv", "rows", "0",
             "f.test_s_dv.facet.range.set", "[a,d]",
             "f.test_s_dv.facet.range.set", "[d,z]"),
-        "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/int[@name='[a,d]'][.=4]",
-        "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/int[@name='[d,z]'][.=5]");
+        "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/lst[@name='counts']/int[@name='[a,d]'][.=4]",
+        "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/lst[@name='counts']/int[@name='[d,z]'][.=5]");
     
     assertQ(req("q", "*:*", "facet", "true", "facet.range", "test_s_dv", "rows", "0",
             "f.test_s_dv.facet.range.set", "[a,d]",
             "f.test_s_dv.facet.range.set", "[d,z]",
             "fq", "test_s_dv:dog"),
-        "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/int[@name='[a,d]'][.=0]",
-        "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/int[@name='[d,z]'][.=4]");
+        "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/lst[@name='counts']/int[@name='[a,d]'][.=0]",
+        "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/lst[@name='counts']/int[@name='[d,z]'][.=4]");
     
     assertQ(req("q", "*:*", "facet", "true", "facet.range", "{!ex=dogs}test_s_dv", "rows", "0",
             "f.test_s_dv.facet.range.set", "[a,d]",
             "f.test_s_dv.facet.range.set", "[d,z]",
             "fq", "{!tag='dogs'}test_s_dv:dog"),
-        "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/int[@name='[a,d]'][.=4]",
-        "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/int[@name='[d,z]'][.=5]");
+        "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/lst[@name='counts']/int[@name='[a,d]'][.=4]",
+        "//lst[@name='facet_ranges']/lst[@name='test_s_dv']/lst[@name='counts']/int[@name='[d,z]'][.=5]");
   }
   
   @Test
@@ -993,7 +993,7 @@ public class TestIntervalFaceting extends SolrTestCaseJ4 {
     String[] tests = new String[intervals.length / 2 + (resultCount > 0 ? 1 : 0)];
     idx = 0;
     for (int i = 0; i < intervals.length; i += 2) {
-      tests[idx++] = "//lst[@name='facet_ranges']/lst[@name='" + field + "']/int[@name='" + intervals[i] + "'][.=" + intervals[i + 1] + "]";
+      tests[idx++] = "//lst[@name='facet_ranges']/lst[@name='" + field + "']/lst[@name='counts']/int[@name='" + intervals[i] + "'][.=" + intervals[i + 1] + "]";
     }
     if (resultCount >= 0) {
       tests[idx++] = "//*[@numFound='" + resultCount + "']";

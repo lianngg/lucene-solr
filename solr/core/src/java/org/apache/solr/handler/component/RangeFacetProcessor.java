@@ -88,9 +88,11 @@ public class RangeFacetProcessor extends SimpleFacets {
   }
 
   /**
-   * Adds intervals into the resOuter <code>NamedList</code> with each entry
-   * having the "key" of the interval as name and the count of docs in that
-   * interval as value. All intervals added in the request are included in the
+   * Adds intervals into the <code>NamedList</code> resOuter with each entry
+   * having the "counts" as name and the value is a <code>NamedList</code>
+   * with each entry having the "key" of the interval as name and the count of
+   * docs in that interval as value.
+   * All intervals added in the request are included in the
    * <code>NamedList</code> (included those with 0 count), and it's required
    * that the order of the intervals is deterministic and equals in all shards
    * of a distributed request, otherwise the collation of results will fail.
@@ -108,11 +110,13 @@ public class RangeFacetProcessor extends SimpleFacets {
         throw new SolrException(SolrException.ErrorCode.BAD_REQUEST,
             "Interval Faceting can't be used with " + GroupParams.GROUP_FACET);
       }
-      SimpleOrderedMap<Integer> fieldResults = new SimpleOrderedMap<Integer>();
+      NamedList<Object> fieldResults = new SimpleOrderedMap<>();
       IntervalFacets intervalFacets = new IntervalFacets(schemaField, searcher, parsed.docs, intervalStrs, parsed.params);
+      NamedList<Integer> result = new SimpleOrderedMap<>();
       for (FacetInterval interval : intervalFacets) {
-        fieldResults.add(interval.getKey(), interval.getCount());
+        result.add(interval.getKey(), interval.getCount());
       }
+      fieldResults.add("counts", result);
       resOuter.add(parsed.key, fieldResults);
     }
   }

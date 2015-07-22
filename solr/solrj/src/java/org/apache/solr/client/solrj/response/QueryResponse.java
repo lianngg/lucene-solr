@@ -366,8 +366,8 @@ public class QueryResponse extends SolrResponseBase
       _intervalFacets = new ArrayList<>(intervalsNL.size());
       for (Map.Entry<String, NamedList<Object>> intervalField : intervalsNL) {
         List<IntervalFacet.Count> counts = new ArrayList<IntervalFacet.Count>(intervalField.getValue().size());
-          if (intervalField.getValue().get("counts") instanceof SimpleOrderedMap) {
-            SimpleOrderedMap<Integer> intervals = (SimpleOrderedMap<Integer>) intervalField.getValue().get("counts");
+          if (intervalField.getValue().get("counts") instanceof NamedList) {
+            NamedList<Integer> intervals = (NamedList<Integer>) intervalField.getValue().get("counts");
             for (Map.Entry<String, Integer> interval: intervals) {
               counts.add(new IntervalFacet.Count(interval.getKey(), interval.getValue()));
             }
