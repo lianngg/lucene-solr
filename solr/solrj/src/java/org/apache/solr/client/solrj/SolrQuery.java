@@ -297,9 +297,9 @@ public class SolrQuery extends ModifiableSolrParams
       throw new IllegalArgumentException("Field can't be null");
     }
     set(FacetParams.FACET, true);
-    add(FacetParams.FACET_INTERVAL, field);
+    add(FacetParams.FACET_RANGE, field);
     for (String interval:intervals) {
-      add(String.format(Locale.ROOT, "f.%s.facet.interval.set", field), interval);
+      add(String.format(Locale.ROOT, "f.%s.facet.range.set", field), interval);
     }
     return this;
   }
@@ -311,8 +311,8 @@ public class SolrQuery extends ModifiableSolrParams
    * @return Array of current intervals for <code>field</code>
    */
   public String[] removeIntervalFacets(String field) {
-    while(remove(FacetParams.FACET_INTERVAL, field)){};
-    return remove(String.format(Locale.ROOT, "f.%s.facet.interval.set", field));
+    while(remove(FacetParams.FACET_RANGE, field)){};
+    return remove(String.format(Locale.ROOT, "f.%s.facet.range.set", field));
   }
   
   /** get the facet fields

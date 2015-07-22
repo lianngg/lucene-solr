@@ -230,6 +230,10 @@ public interface FacetParams {
    */
   public static final String FACET_RANGE = FACET + ".range";
   /**
+   * Set of terms for a single interval to facet on.
+   */
+  public static final String FACET_RANGE_SET = FACET_RANGE + ".set";
+  /**
    * Number indicating the starting point for a numerical range facet.
    * Can be overriden on a per field basis.
    */

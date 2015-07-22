@@ -28,12 +28,15 @@ import org.apache.lucene.search.Query;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.params.FacetParams.FacetRangeMethod;
 import org.apache.solr.common.params.FacetParams.FacetRangeOther;
+import org.apache.solr.common.params.FacetParams;
+import org.apache.solr.common.params.GroupParams;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.common.util.SimpleOrderedMap;
 import org.apache.solr.request.IntervalFacets;
 import org.apache.solr.request.SimpleFacets;
 import org.apache.solr.request.SolrQueryRequest;
+import org.apache.solr.request.IntervalFacets.FacetInterval;
 import org.apache.solr.schema.FieldType;
 import org.apache.solr.schema.IndexSchema;
 import org.apache.solr.schema.SchemaField;
@@ -72,7 +75,30 @@ public class RangeFacetProcessor extends SimpleFacets {
 
     if (rangeFacetRequests.isEmpty()) return resOuter;
     for (RangeFacetRequest rangeFacetRequest : rangeFacetRequests) {
-      getFacetRangeCounts(rangeFacetRequest, resOuter);
+      if (rangeFacetRequest.getFacetIntervalSets() != null) {
+        String[] fields = global.getParams(FacetParams.FACET_RANGE);
+        if (fields == null || fields.length == 0) continue;
+
+        for (String field : fields) {
+          final ParsedParams parsed = parseParams(FacetParams.FACET_RANGE, field);
+          String[] intervalStrs = parsed.required.getFieldParams(parsed.facetValue, FacetParams.FACET_RANGE_SET);
+          SchemaField schemaField = searcher.getCore().getLatestSchema().getField(parsed.facetValue);
+          if (rangeFacetRequest.isGroupFacet()) {
+            throw new SolrException(SolrException.ErrorCode.BAD_REQUEST,
+                "Interval Faceting can't be used with " + GroupParams.GROUP_FACET);
+          }
+          SimpleOrderedMap<Integer> fieldResults = new SimpleOrderedMap<Integer>();
+          resOuter.add(parsed.key, fieldResults);
+          IntervalFacets intervalFacets = new IntervalFacets(schemaField, searcher, parsed.docs, intervalStrs, parsed.params);
+          for (FacetInterval interval : intervalFacets) {
+            fieldResults.add(interval.getKey(), interval.getCount());
+          }
+        }
+        return resOuter;
+      }
+      else {
+        getFacetRangeCounts(rangeFacetRequest, resOuter);
+      }
     }
 
     return resOuter;

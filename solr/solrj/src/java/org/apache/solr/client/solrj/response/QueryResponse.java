@@ -361,14 +361,15 @@ public class QueryResponse extends SolrResponseBase
     }
     
     //Parse interval facets
-    NamedList<NamedList<Object>> intervalsNL = (NamedList<NamedList<Object>>) info.get("facet_intervals");
+    NamedList<NamedList<Object>> intervalsNL = (NamedList<NamedList<Object>>) info.get("facet_ranges");
     if (intervalsNL != null) {
       _intervalFacets = new ArrayList<>(intervalsNL.size());
       for (Map.Entry<String, NamedList<Object>> intervalField : intervalsNL) {
         String field = intervalField.getKey();
         List<IntervalFacet.Count> counts = new ArrayList<IntervalFacet.Count>(intervalField.getValue().size());
         for (Map.Entry<String, Object> interval : intervalField.getValue()) {
-          counts.add(new IntervalFacet.Count(interval.getKey(), (Integer)interval.getValue()));
+          if (interval.getValue() instanceof Integer)
+            counts.add(new IntervalFacet.Count(interval.getKey(), (Integer)interval.getValue()));
         }
         _intervalFacets.add(new IntervalFacet(field, counts));
       }
@@ -406,10 +407,11 @@ public class QueryResponse extends SolrResponseBase
       }
 
       NamedList<Integer> counts = (NamedList<Integer>) values.get("counts");
-      for (Map.Entry<String, Integer> entry : counts)   {
-        rangeFacet.addCount(entry.getKey(), entry.getValue());
+      if (counts != null) {
+        for (Map.Entry<String, Integer> entry : counts)   {
+          rangeFacet.addCount(entry.getKey(), entry.getValue());
+        }
       }
-
       facetRanges.add(rangeFacet);
     }
     return facetRanges;

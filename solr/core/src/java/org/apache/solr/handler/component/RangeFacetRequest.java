@@ -18,6 +18,7 @@ package org.apache.solr.handler.component;
  */
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
@@ -58,6 +59,7 @@ public class RangeFacetRequest extends FacetComponent.FacetBase {
   protected final int minCount;
   protected final boolean groupFacet;
   protected final List<FacetRange> facetRanges;
+  protected final String[] facetIntervalSets;
 
   /**
    * The computed start value of this range
@@ -80,6 +82,29 @@ public class RangeFacetRequest extends FacetComponent.FacetBase {
 
     SolrParams params = SolrParams.wrapDefaults(localParams, rb.req.getParams());
     SolrParams required = new RequiredSolrParams(params);
+
+    String[] start = params.getFieldParams(facetOn, FacetParams.FACET_RANGE_START);
+    String[] end = params.getFieldParams(facetOn, FacetParams.FACET_RANGE_END);
+    String[] gap = params.getFieldParams(facetOn, FacetParams.FACET_RANGE_GAP);
+
+    if (start == null && end == null && gap == null) {
+      this.facetIntervalSets = required.getFieldParams(facetOn, FacetParams.FACET_RANGE_SET);
+      this.start = null;
+      this.end = null;
+      this.gap = null;
+      this.hardEnd = false;
+      this.include = null;
+      this.others = null;
+      this.method = null;
+      this.minCount = 0;
+      this.groupFacet = params.getBool(GroupParams.GROUP_FACET, false);
+      this.facetRanges = null;
+      this.gapObj = null;
+      this.startObj = null;
+      this.endObj = null;
+      return;
+    }
+    this.facetIntervalSets = null;
 
     String methodStr = params.get(FacetParams.FACET_RANGE_METHOD);
     FacetParams.FacetRangeMethod method = (methodStr == null ? FacetParams.FacetRangeMethod.getDefault() : FacetParams.FacetRangeMethod.get(methodStr));
@@ -265,6 +290,14 @@ public class RangeFacetRequest extends FacetComponent.FacetBase {
    */
   public List<FacetRange> getFacetRanges() {
     return facetRanges;
+  }
+
+  /**
+   * @return a {@link Arrays} of {@link String} objects
+   * representing the intervals for which range counts are to be calculated.
+   */
+  public String[] getFacetIntervalSets() {
+    return facetIntervalSets;
   }
 
   /**
