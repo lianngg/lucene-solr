@@ -260,6 +260,9 @@ Optimizations
 Other Changes
 ----------------------
 
+* SOLR-7787: Removed fastutil and java-hll dependency, integrated HyperLogLog from java-hll 
+  into Solr core. (Dawid Weiss)
+
 * SOLR-7595: Allow method chaining for all CollectionAdminRequests in Solrj. (shalin)
 
 * SOLR-7146: MiniSolrCloudCluster based tests can fail with ZooKeeperException NoNode for /live_nodes.
@@ -334,6 +337,7 @@ Other Changes
   treat missing values as 0 if that is desired.
   Example:  facet:{ mean:"avg(def(myfield,0))" }
 
+* SOLR-7805: Update Kite Morphlines to 1.1.0 (Mark Miller)
 
 ==================  5.2.1 ==================
 
