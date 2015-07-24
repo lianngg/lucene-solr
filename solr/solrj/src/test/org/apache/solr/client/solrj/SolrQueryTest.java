@@ -430,7 +430,7 @@ public class SolrQueryTest extends LuceneTestCase {
     assertNull(solrQuery.getParams("f.field2.facet.range.set"));
     
     assertArrayEquals(new String[]{"[1,10]", "(10,100]", "(100,1000]", "(1000,*]"}, solrQuery.removeIntervalFacets("field3"));
-    assertNull(solrQuery.getParams(FacetParams.FACET_INTERVAL));
+    assertNull(solrQuery.getParams(FacetParams.FACET_RANGE));
     assertNull(solrQuery.getParams("f.field3.facet.range.set"));
     
   }
