@@ -31,6 +31,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -265,15 +266,25 @@ public class QueryResponseTest extends LuceneTestCase {
   
   
   public void testIntervalFacetsResponse() throws Exception {
+    List<QueryResponse> queryResponses = new ArrayList<>();
     XMLResponseParser parser = new XMLResponseParser();
     try(SolrResourceLoader loader = new SolrResourceLoader(null, null)) {
       InputStream is = loader.openResource("solrj/sampleIntervalFacetsResponse.xml");
       assertNotNull(is);
       Reader in = new InputStreamReader(is, StandardCharsets.UTF_8);
       NamedList<Object> response = parser.processResponse(in);
+      queryResponses.add(new QueryResponse(response, null));
       in.close();
-      
-      QueryResponse qr = new QueryResponse(response, null);
+      // Load the sample file in facet.range format
+      is = loader.openResource("solrj/sampleIntervalRangeFacetsResponse.xml");
+      assertNotNull(is);
+      in = new InputStreamReader(is, StandardCharsets.UTF_8);
+      response = parser.processResponse(in);
+      queryResponses.add(new QueryResponse(response, null));
+      in.close();
+    }
+
+    for (QueryResponse qr: queryResponses) {
       assertNotNull(qr);
       assertNotNull(qr.getIntervalFacets());
       assertEquals(2, qr.getIntervalFacets().size());

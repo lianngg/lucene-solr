@@ -161,6 +161,10 @@ New Features
 
 * SOLR-7742: Support for Immutable ConfigSets (Gregory Chanan)
 
+* SOLR-7795: Fold Interval Faceting into Range Faceting. Interval faceting becomes a part of
+  range faceting family and could be deprecated in the future.
+  (Hsuan-Tzu Liang via Tomás Fernández Löbbe)
+
 Bug Fixes
 ----------------------
 

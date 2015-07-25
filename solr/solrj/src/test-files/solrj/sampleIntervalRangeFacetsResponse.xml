@@ -22,19 +22,19 @@
   <int name="status">0</int>
   <int name="QTime">3</int>
   <lst name="params">
-    <arr name="f.price.facet.interval.set">
+    <arr name="f.price.facet.range.set">
       <str>[0,10]</str>
       <str>(10,100]</str>
       <str>(100,*]</str>
     </arr>
     <str name="facet">true</str>
     <str name="indent">true</str>
-    <arr name="f.popularity.facet.interval.set">
+    <arr name="f.popularity.facet.range.set">
       <str>{!key=bad}[0,4]</str>
       <str>{!key=average}(4,7]</str>
       <str>{!key=good}(7,*]</str>
     </arr>
-    <arr name="facet.interval">
+    <arr name="facet.range">
       <str>price</str>
       <str>popularity</str>
     </arr>
@@ -189,17 +189,20 @@
   <lst name="facet_queries"/>
   <lst name="facet_fields"/>
   <lst name="facet_dates"/>
-  <lst name="facet_ranges"/>
-  <lst name="facet_intervals">
+  <lst name="facet_ranges">
     <lst name="price">
-      <int name="[0,10]">3</int>
-      <int name="(10,100]">4</int>
-      <int name="(100,*]">9</int>
+      <lst name="counts">
+        <int name="[0,10]">3</int>
+        <int name="(10,100]">4</int>
+        <int name="(100,*]">9</int>
+      </lst>
     </lst>
     <lst name="popularity">
-      <int name="bad">3</int>
-      <int name="average">10</int>
-      <int name="good">2</int>
+      <lst name="counts">
+        <int name="bad">3</int>
+        <int name="average">10</int>
+        <int name="good">2</int>
+      </lst>
     </lst>
   </lst>
 </lst>

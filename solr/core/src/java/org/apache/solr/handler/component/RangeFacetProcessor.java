@@ -77,7 +77,6 @@ public class RangeFacetProcessor extends SimpleFacets {
     for (RangeFacetRequest rangeFacetRequest : rangeFacetRequests) {
       if (rangeFacetRequest.getFacetIntervalSets() != null) {
         getFacetIntervalCounts(rangeFacetRequest, resOuter);
-        return resOuter;
       }
       else {
         getFacetRangeCounts(rangeFacetRequest, resOuter);
@@ -99,26 +98,26 @@ public class RangeFacetProcessor extends SimpleFacets {
    */
   public void getFacetIntervalCounts(RangeFacetRequest rangeFacetRequest, NamedList<Object> resOuter)
       throws IOException, SyntaxError {
-    String[] fields = global.getParams(FacetParams.FACET_RANGE);
-    if (fields == null || fields.length == 0) return;
+    // Facet on the field that includes localParams
+    String field = rangeFacetRequest.facetStr;
+    if (field == null || field.isEmpty()) return;
 
-    for (String field : fields) {
-      final ParsedParams parsed = parseParams(FacetParams.FACET_RANGE, field);
-      String[] intervalStrs = parsed.required.getFieldParams(parsed.facetValue, FacetParams.FACET_RANGE_SET);
-      SchemaField schemaField = searcher.getCore().getLatestSchema().getField(parsed.facetValue);
-      if (rangeFacetRequest.isGroupFacet()) {
-        throw new SolrException(SolrException.ErrorCode.BAD_REQUEST,
-            "Interval Faceting can't be used with " + GroupParams.GROUP_FACET);
-      }
-      NamedList<Object> fieldResults = new SimpleOrderedMap<>();
-      IntervalFacets intervalFacets = new IntervalFacets(schemaField, searcher, parsed.docs, intervalStrs, parsed.params);
-      NamedList<Integer> result = new SimpleOrderedMap<>();
-      for (FacetInterval interval : intervalFacets) {
-        result.add(interval.getKey(), interval.getCount());
-      }
-      fieldResults.add("counts", result);
-      resOuter.add(parsed.key, fieldResults);
+    final ParsedParams parsed = parseParams(FacetParams.FACET_RANGE, field);
+    String[] intervalStrs = parsed.required.getFieldParams(parsed.facetValue, FacetParams.FACET_RANGE_SET);
+    SchemaField schemaField = searcher.getCore().getLatestSchema().getField(parsed.facetValue);
+    if (rangeFacetRequest.isGroupFacet()) {
+      throw new SolrException(SolrException.ErrorCode.BAD_REQUEST,
+          "Interval Faceting can't be used with " + GroupParams.GROUP_FACET);
     }
+    NamedList<Object> counts = new SimpleOrderedMap<>();
+    IntervalFacets intervalFacets = new IntervalFacets(schemaField, searcher, parsed.docs, intervalStrs, parsed.params);
+    NamedList<Integer> result = new SimpleOrderedMap<>();
+    for (FacetInterval interval : intervalFacets) {
+      result.add(interval.getKey(), interval.getCount());
+      System.out.println(interval.getKey() + " " + interval.getCount());
+    }
+    counts.add("counts", result);
+    resOuter.add(rangeFacetRequest.getKey(), counts);
   }
 
   /**

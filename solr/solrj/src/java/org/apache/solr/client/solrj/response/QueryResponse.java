@@ -361,6 +361,8 @@ public class QueryResponse extends SolrResponseBase
     NamedList<NamedList<Object>> rf = (NamedList<NamedList<Object>>) info.get("facet_ranges");
     if (rf != null) {
       _facetRanges = extractRangeFacets(rf);
+      //Parse interval facets from facet_ranges
+      _intervalFacets = extractIntervalFacets(rf);
     }
     
     //Parse pivot facets
@@ -373,20 +375,32 @@ public class QueryResponse extends SolrResponseBase
     }
     
     //Parse interval facets
-    NamedList<NamedList<Object>> intervalsNL = (NamedList<NamedList<Object>>) info.get("facet_ranges");
+    NamedList<NamedList<Object>> intervalsNL = (NamedList<NamedList<Object>>) info.get("facet_intervals");
     if (intervalsNL != null) {
-      _intervalFacets = new ArrayList<>(intervalsNL.size());
       for (Map.Entry<String, NamedList<Object>> intervalField : intervalsNL) {
+        String field = intervalField.getKey();
         List<IntervalFacet.Count> counts = new ArrayList<IntervalFacet.Count>(intervalField.getValue().size());
-          if (intervalField.getValue().get("counts") instanceof NamedList) {
-            NamedList<Integer> intervals = (NamedList<Integer>) intervalField.getValue().get("counts");
-            for (Map.Entry<String, Integer> interval: intervals) {
-              counts.add(new IntervalFacet.Count(interval.getKey(), interval.getValue()));
-            }
-          }
-        _intervalFacets.add(new IntervalFacet(intervalField.getKey(), counts));
+        for (Map.Entry<String, Object> interval : intervalField.getValue()) {
+          counts.add(new IntervalFacet.Count(interval.getKey(), (Integer)interval.getValue()));
+        }
+        _intervalFacets.add(new IntervalFacet(field, counts));
       }
     }
+  }
+
+  private List<IntervalFacet> extractIntervalFacets(NamedList<NamedList<Object>> rf) {
+    List<IntervalFacet> facetIntervals = new ArrayList<>(rf.size());
+    for (Map.Entry<String, NamedList<Object>> intervalField : rf) {
+      List<IntervalFacet.Count> counts = new ArrayList<IntervalFacet.Count>(intervalField.getValue().size());
+        if (intervalField.getValue().get("counts") instanceof NamedList) {
+          NamedList<Integer> intervals = (NamedList<Integer>) intervalField.getValue().get("counts");
+          for (Map.Entry<String, Integer> interval: intervals) {
+            counts.add(new IntervalFacet.Count(interval.getKey(), interval.getValue()));
+          }
+        }
+        facetIntervals.add(new IntervalFacet(intervalField.getKey(), counts));
+    }
+    return facetIntervals;
   }
 
   private List<RangeFacet> extractRangeFacets(NamedList<NamedList<Object>> rf) {
