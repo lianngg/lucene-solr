@@ -141,6 +141,9 @@ New Features
   the specified distance from the center point.  Fix
   GeoPointInBBoxQuery to handle dateline crossing.
 
+* LUCENE-6694: Add LithuanianAnalyzer and LithuanianStemmer.
+  (Dainius Jocas via Robert Muir)
+
 API Changes
 
 * LUCENE-6508: Simplify Lock api, there is now just 
@@ -272,6 +275,9 @@ Bug fixes
   but instead throw an exception from setMaxTokenLength() when the given
   length is greater than 1M chars.  (Piotr Idzikowski, Steve Rowe)
 
+* LUCENE-6696: Fix FilterDirectoryReader.close() to never close the
+  underlying reader several times. (Adrien Grand)
+
 Changes in Runtime Behavior
 
 * LUCENE-6501: The subreader structure in ParallelCompositeReader
@@ -352,6 +358,13 @@ Optimizations
   and TermsQuery. This should especially help when there are lots of small
   postings lists. (Adrien Grand, Mike McCandless)
 
+* LUCENE-6668: Optimized storage for sorted set and sorted numeric doc values
+  in the case that there are few unique sets of values.
+  (Adrien Grand, Robert Muir)
+
+* LUCENE-6690: Sped up MultiTermsEnum.next() on high-cardinality fields.
+  (Adrien Grand)
+
 Build
 
 * LUCENE-6518: Don't report false thread leaks from IBM J9
@@ -365,6 +378,11 @@ Build
   
 * LUCENE-6683: ivy-fail goal directs people to non-existent page
   (Mike Drob via Steve Rowe)
+
+* LUCENE-6693: Updated Groovy to 2.4.4, Pegdown to 1.5, Svnkit to 1.8.10.
+  Also fixed some PermGen errors while running full build caused by
+  these updates: Tasks are now installed from root's build.xml.
+  (Uwe Schindler)
 
 Test Framework
 

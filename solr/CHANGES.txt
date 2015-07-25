@@ -240,6 +240,12 @@ Bug Fixes
   a bug that resulted in filter cache lookup misses as well as the filter cache 
   exceeding it's configured size. (yonik)
 
+* SOLR-7810: map-reduce contrib script to set classpath for convenience refers to example
+  rather than server. (Mark Miller)
+
+* SOLR-7765: Hardened the behavior of TokenizerChain when null arguments are used in constructor.
+  This prevents NPEs in some code paths.  (Konstantin Gribov, hossman)
+
 Optimizations
 ----------------------
 
@@ -342,6 +348,16 @@ Other Changes
   Example:  facet:{ mean:"avg(def(myfield,0))" }
 
 * SOLR-7805: Update Kite Morphlines to 1.1.0 (Mark Miller)
+
+* SOLR-7803: Prevent class loading deadlock in TrieDateField; refactor date
+  formatting and parsing out of TrieDateField and move to static utility class
+  DateFormatUtil.  (Markus Heiden, Uwe Schindler)
+
+* SOLR-7825: Forbid all usages of log4j and java.util.logging classes in Solr except
+  classes which are specific to logging implementations. Remove accidental usage of log4j
+  logger from a few places. The default log level for org.apache.zookeeper is changed from
+  ERROR to WARN for zkcli.{sh,cmd} only.
+  (Oliver Schrenk, Tim Potter, Uwe Schindler, shalin)
 
 ==================  5.2.1 ==================
 
