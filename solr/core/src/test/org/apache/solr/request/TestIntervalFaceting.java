@@ -337,6 +337,7 @@ public class TestIntervalFaceting extends SolrTestCaseJ4 {
    * Executes one query using interval faceting and compares with the same query using
    * facet query with the same range
    */
+  @Deprecated
   @SuppressWarnings("unchecked")
   private void doTestQuery(int cardinality, String[] fields) throws Exception {
     String[] startOptions = new String[]{"(", "["};
@@ -1245,6 +1246,7 @@ public class TestIntervalFaceting extends SolrTestCaseJ4 {
         req(params), tests);
   }
 
+  @Deprecated
   private void assertIntervalQuery(String field, String query, int resultCount, String... intervals) {
     assert (intervals.length & 1) == 0;
     int idx = 0;

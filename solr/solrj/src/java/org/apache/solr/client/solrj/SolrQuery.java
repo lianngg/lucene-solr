@@ -289,6 +289,7 @@ public class SolrQuery extends ModifiableSolrParams
    * be <code>null</code>
    * @return this
    */
+  @Deprecated
   public SolrQuery addIntervalFacets(String field, String[] intervals) {
     if (intervals == null) {
       throw new IllegalArgumentException("Can't add null intervals");
@@ -339,6 +340,7 @@ public class SolrQuery extends ModifiableSolrParams
    * @param field the field to remove from facet intervals
    * @return Array of current intervals for <code>field</code>
    */
+  @Deprecated
   public String[] removeIntervalFacets(String field) {
     while(remove(FacetParams.FACET_INTERVAL, field)){};
     return remove(String.format(Locale.ROOT, "f.%s.facet.interval.set", field));

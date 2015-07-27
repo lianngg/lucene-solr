@@ -402,7 +402,8 @@ public class SolrQueryTest extends LuceneTestCase {
     solrQuery.addFacetQuery("field:value");
     assertTrue("Adding a Facet Query should enable facets", solrQuery.getBool(FacetParams.FACET));
   }
-  
+
+  @Deprecated
   public void testFacetInterval() {
     SolrQuery solrQuery = new SolrQuery();
     solrQuery.addIntervalFacets("field1", new String[]{});
