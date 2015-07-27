@@ -335,7 +335,7 @@ public class SolrQuery extends ModifiableSolrParams
   }
   
   /**
-   * Remove all Interval Facets on a field with facet.range format
+   * Remove all Interval Facets on a field
    * 
    * @param field the field to remove from facet intervals
    * @return Array of current intervals for <code>field</code>
@@ -347,7 +347,7 @@ public class SolrQuery extends ModifiableSolrParams
   }
 
   /**
-   * Remove all Interval Facets on a field
+   * Remove all Interval Facets on a field with facet.range format
    *
    * @param field the field to remove from facet intervals
    * @return Array of current intervals for <code>field</code>
