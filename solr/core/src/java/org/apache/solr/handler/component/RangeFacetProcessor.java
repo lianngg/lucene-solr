@@ -116,7 +116,6 @@ public class RangeFacetProcessor extends SimpleFacets {
     NamedList<Integer> result = new SimpleOrderedMap<>();
     for (FacetInterval interval : intervalFacets) {
       result.add(interval.getKey(), interval.getCount());
-      System.out.println(interval.getKey() + " " + interval.getCount());
     }
     counts.add("counts", result);
     resOuter.add(rangeFacetRequest.getKey(), counts);
