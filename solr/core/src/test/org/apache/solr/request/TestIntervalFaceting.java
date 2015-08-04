@@ -1169,11 +1169,11 @@ public class TestIntervalFaceting extends SolrTestCaseJ4 {
     q.add("f.test_i_dv.facet.range.set", "{!key=first}[0,1]");
     q.add("f.test_i_dv.facet.range.set", "{!key=second}[2,*]");
     response = client.query(q);
-    assertEquals(1, response.getIntervalFacets().size());
-    assertEquals("foo", response.getIntervalFacets().get(0).getField());
-    assertEquals(2, response.getIntervalFacets().get(0).getIntervals().size());
-    assertEquals("first", response.getIntervalFacets().get(0).getIntervals().get(0).getKey());
-    assertEquals("second", response.getIntervalFacets().get(0).getIntervals().get(1).getKey());
+    assertEquals(1, response.getFacetRanges().size());
+    assertEquals("foo", response.getFacetRanges().get(0).getName());
+    assertEquals(2, response.getFacetRanges().get(0).getIntervalSets().size());
+    assertEquals("first", response.getFacetRanges().get(0).getIntervalSets().get(0));
+    assertEquals("second", response.getFacetRanges().get(0).getIntervalSets().get(1));
     
   }
   

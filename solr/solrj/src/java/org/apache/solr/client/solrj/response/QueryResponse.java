@@ -361,8 +361,6 @@ public class QueryResponse extends SolrResponseBase
     NamedList<NamedList<Object>> rf = (NamedList<NamedList<Object>>) info.get("facet_ranges");
     if (rf != null) {
       _facetRanges = extractRangeFacets(rf);
-      //Parse interval facets from facet_ranges
-      _intervalFacets = extractIntervalFacets(rf);
     }
     
     //Parse pivot facets
@@ -377,6 +375,7 @@ public class QueryResponse extends SolrResponseBase
     //Parse interval facets
     NamedList<NamedList<Object>> intervalsNL = (NamedList<NamedList<Object>>) info.get("facet_intervals");
     if (intervalsNL != null) {
+      _intervalFacets = new ArrayList<>(intervalsNL.size());
       for (Map.Entry<String, NamedList<Object>> intervalField : intervalsNL) {
         String field = intervalField.getKey();
         List<IntervalFacet.Count> counts = new ArrayList<IntervalFacet.Count>(intervalField.getValue().size());
@@ -411,7 +410,15 @@ public class QueryResponse extends SolrResponseBase
       Object rawGap = values.get("gap");
 
       RangeFacet rangeFacet;
-      if (rawGap instanceof Number) {
+      if (rawGap == null) {
+        NamedList<Integer> intervals = (NamedList<Integer>) values.get("counts");
+        List<String> intervalSets = new ArrayList<String>();
+        for (Map.Entry<String, Integer> interval: intervals) {
+          intervalSets.add(interval.getKey());
+        }
+        rangeFacet = new RangeFacet.Interval(facet.getKey(), intervalSets);
+      }
+      else if (rawGap instanceof Number) {
         Number gap = (Number) rawGap;
         Number start = (Number) values.get("start");
         Number end = (Number) values.get("end");

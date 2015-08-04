@@ -31,7 +31,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -264,27 +263,17 @@ public class QueryResponseTest extends LuceneTestCase {
     assertEquals("708_HI", documents.get(9).getFieldValue("acco_id"));
   }
   
-  
+  @Deprecated
   public void testIntervalFacetsResponse() throws Exception {
-    List<QueryResponse> queryResponses = new ArrayList<>();
     XMLResponseParser parser = new XMLResponseParser();
     try(SolrResourceLoader loader = new SolrResourceLoader(null, null)) {
       InputStream is = loader.openResource("solrj/sampleIntervalFacetsResponse.xml");
       assertNotNull(is);
       Reader in = new InputStreamReader(is, StandardCharsets.UTF_8);
       NamedList<Object> response = parser.processResponse(in);
-      queryResponses.add(new QueryResponse(response, null));
       in.close();
-      // Load the sample file in facet.range format
-      is = loader.openResource("solrj/sampleIntervalRangeFacetsResponse.xml");
-      assertNotNull(is);
-      in = new InputStreamReader(is, StandardCharsets.UTF_8);
-      response = parser.processResponse(in);
-      queryResponses.add(new QueryResponse(response, null));
-      in.close();
-    }
-
-    for (QueryResponse qr: queryResponses) {
+      
+      QueryResponse qr = new QueryResponse(response, null);
       assertNotNull(qr);
       assertNotNull(qr.getIntervalFacets());
       assertEquals(2, qr.getIntervalFacets().size());
@@ -318,4 +307,46 @@ public class QueryResponseTest extends LuceneTestCase {
     
   }
 
+  public void testIntervalRangeFacetsResponse() throws Exception {
+    XMLResponseParser parser = new XMLResponseParser();
+    try(SolrResourceLoader loader = new SolrResourceLoader(null, null)) {
+      InputStream is = loader.openResource("solrj/sampleIntervalRangeFacetsResponse.xml");
+      assertNotNull(is);
+      Reader in = new InputStreamReader(is, StandardCharsets.UTF_8);
+      NamedList<Object> response = parser.processResponse(in);
+      in.close();
+
+      QueryResponse qr = new QueryResponse(response, null);
+      assertNotNull(qr);
+      assertNotNull(qr.getFacetRanges());
+      assertEquals(2, qr.getFacetRanges().size());
+
+      RangeFacet facet = qr.getFacetRanges().get(0);
+      assertEquals("price", facet.getName());
+      assertEquals(3, facet.getIntervalSets().size());
+
+      RangeFacet.Interval interval = (RangeFacet.Interval) facet;
+      assertEquals("[0,10]", interval.getCounts().get(0).getValue());
+      assertEquals("(10,100]", interval.getCounts().get(1).getValue());
+      assertEquals("(100,*]", interval.getCounts().get(2).getValue());
+
+      assertEquals(3, interval.getCounts().get(0).getCount());
+      assertEquals(4, interval.getCounts().get(1).getCount());
+      assertEquals(9, interval.getCounts().get(2).getCount());
+
+      facet = qr.getFacetRanges().get(1);
+      interval = (RangeFacet.Interval) facet;
+      assertEquals("popularity", facet.getName());
+      assertEquals(3, facet.getIntervalSets().size());
+
+      assertEquals("bad", interval.getCounts().get(0).getValue());
+      assertEquals("average", interval.getCounts().get(1).getValue());
+      assertEquals("good", interval.getCounts().get(2).getValue());
+
+      assertEquals(3, interval.getCounts().get(0).getCount());
+      assertEquals(10, interval.getCounts().get(1).getCount());
+      assertEquals(2, interval.getCounts().get(2).getCount());
+
+    }
+  }
 }
