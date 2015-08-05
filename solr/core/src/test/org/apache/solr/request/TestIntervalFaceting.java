@@ -1165,7 +1165,7 @@ public class TestIntervalFaceting extends SolrTestCaseJ4 {
     // For testing facet.range
     q = new SolrQuery();
     q.setQuery("*:*");
-    q.addIntervalRangeFacets("test_i_dv", new String[]{"[0,1]","[2,*]"});
+    q.addIntervalRangeFacet("test_i_dv", new String[]{"[0,1]","[2,*]"});
     response = client.query(q);
     assertEquals(1, response.getFacetRanges().size());
     assertEquals("test_i_dv", response.getFacetRanges().get(0).getName());
@@ -1201,7 +1201,7 @@ public class TestIntervalFaceting extends SolrTestCaseJ4 {
 
     SolrQuery q = new SolrQuery();
     q.setQuery("*:*");
-    q.addIntervalRangeFacets("test_i_dv", new String[]{"[0,1]","[2,*]"});
+    q.addIntervalRangeFacet("test_i_dv", new String[]{"[0,1]","[2,*]"});
     q.addNumericRangeFacet("test_i_dv", 0, 6, 2);
 
     QueryResponse response = client.query(q);

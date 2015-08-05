@@ -438,31 +438,31 @@ public class SolrQueryTest extends LuceneTestCase {
 
   public void testFacetIntervalRange() {
     SolrQuery solrQuery = new SolrQuery();
-    solrQuery.addIntervalRangeFacets("field1", new String[]{});
+    solrQuery.addIntervalRangeFacet("field1", new String[]{});
     assertTrue(solrQuery.getBool(FacetParams.FACET));
     assertEquals("field1", solrQuery.get(FacetParams.FACET_RANGE));
 
-    solrQuery.addIntervalRangeFacets("field2", new String[]{"[1,10]"});
+    solrQuery.addIntervalRangeFacet("field2", new String[]{"[1,10]"});
     assertArrayEquals(new String[]{"field1", "field2"}, solrQuery.getParams(FacetParams.FACET_RANGE));
     assertEquals("[1,10]", solrQuery.get("f.field2.facet.range.set"));
 
-    solrQuery.addIntervalRangeFacets("field3", new String[]{"[1,10]", "(10,100]", "(100,1000]", "(1000,*]"});
+    solrQuery.addIntervalRangeFacet("field3", new String[]{"[1,10]", "(10,100]", "(100,1000]", "(1000,*]"});
     assertArrayEquals(new String[]{"field1", "field2", "field3"}, solrQuery.getParams(FacetParams.FACET_RANGE));
     assertArrayEquals(new String[]{"[1,10]", "(10,100]", "(100,1000]", "(1000,*]"}, solrQuery.getParams("f.field3.facet.range.set"));
 
     //Validate adding more intervals for an existing field
-    solrQuery.addIntervalRangeFacets("field2", new String[]{"[10,100]"});
+    solrQuery.addIntervalRangeFacet("field2", new String[]{"[10,100]"});
     assertArrayEquals(new String[]{"[1,10]", "[10,100]"}, solrQuery.getParams("f.field2.facet.range.set"));
 
-    assertNull(solrQuery.removeIntervalRangeFacets("field1"));
+    assertNull(solrQuery.removeIntervalRangeFacet("field1"));
     assertArrayEquals(new String[]{"field2", "field3", "field2"}, solrQuery.getParams(FacetParams.FACET_RANGE));
     assertNull(solrQuery.getParams("f.field1.facet.range.set"));
 
-    assertArrayEquals(new String[]{"[1,10]", "[10,100]"}, solrQuery.removeIntervalRangeFacets("field2"));
+    assertArrayEquals(new String[]{"[1,10]", "[10,100]"}, solrQuery.removeIntervalRangeFacet("field2"));
     assertArrayEquals(new String[]{"field3"}, solrQuery.getParams(FacetParams.FACET_RANGE));
     assertNull(solrQuery.getParams("f.field2.facet.range.set"));
 
-    assertArrayEquals(new String[]{"[1,10]", "(10,100]", "(100,1000]", "(1000,*]"}, solrQuery.removeIntervalRangeFacets("field3"));
+    assertArrayEquals(new String[]{"[1,10]", "(10,100]", "(100,1000]", "(1000,*]"}, solrQuery.removeIntervalRangeFacet("field3"));
     assertNull(solrQuery.getParams(FacetParams.FACET_RANGE));
     assertNull(solrQuery.getParams("f.field3.facet.range.set"));
   }
