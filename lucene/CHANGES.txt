@@ -162,6 +162,10 @@ New Features
 * LUCENE-6580: SpanNearQuery now allows defined-width gaps in its subqueries
   (Alan Woodward, Adrien Grand).
 
+* LUCENE-6712: Use doc values to post-filter GeoPointField hits that
+  fall in boundary cells, resulting in smaller index, faster searches
+  and less heap used for each query (Nick Knize via Mike McCandless).
+
 API Changes
 
 * LUCENE-6508: Simplify Lock api, there is now just 
@@ -316,6 +320,15 @@ Bug fixes
   
 * SOLR-5882: fix ScoreMode.Min at ToParentBlockJoinQuery (Mikhail Khludnev)
 
+* LUCENE-6718: JoinUtil.createJoinQuery failed to rewrite queries before
+  creating a Weight. (Adrien Grand)
+
+* LUCENE-6713: TooComplexToDeterminizeException claims to be serializable
+  but wasn't (Simon Willnauer, Mike McCandless)
+
+* LUCENE-6723: Fix date parsing problems in Java 9 with date formats using
+  English weekday/month names.  (Uwe Schindler)
+
 Changes in Runtime Behavior
 
 * LUCENE-6501: The subreader structure in ParallelCompositeReader
@@ -416,6 +429,10 @@ Optimizations
 * LUCENE-6621: Removed two unused variables in analysis/stempel/src/java/org/
   egothor/stemmer/Compile.java
   (Rishabh Patel via Christine Poerschke)
+
+* SOLR-7730: Speed up SlowCompositeReaderWrapper.getSortedSetDocValues() by
+  avoiding merging FieldInfos just to check doc value type.
+  (Mikhail Khludnev, yonik)
 
 Build
 
