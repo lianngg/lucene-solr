@@ -150,15 +150,11 @@
   </macrodef>
 
   <!-- 
-    - We don't test HDFS on Java 7 because it causes permgen errors. Java 8 no longer has permgen.
-    - We don't want to run HDFS tests on Windows, because they require Cygwin.
+    We don't want to run HDFS tests on Windows, because they require Cygwin.
     If you have Cygwin or manually raised permgen, you can override this property on command line:
   -->
   <condition property="tests.disableHdfs" value="true">
-    <or>
-      <equals arg1="${build.java.runtime}" arg2="1.7"/>
-      <os family="windows"/>
-    </or>
+    <os family="windows"/>
   </condition>
 
   <target name="validate" depends="compile-tools">
@@ -249,7 +245,7 @@
   <property name="lucenedocs" location="${common.dir}/build/docs"/>
 
   <!-- dependency to ensure all lucene javadocs are present -->
-  <target name="lucene-javadocs" depends="javadocs-lucene-core,javadocs-analyzers-common,javadocs-analyzers-icu,javadocs-analyzers-kuromoji,javadocs-analyzers-phonetic,javadocs-analyzers-smartcn,javadocs-analyzers-morfologik,javadocs-analyzers-stempel,javadocs-analyzers-uima,javadocs-backward-codecs,javadocs-codecs,javadocs-expressions,javadocs-suggest,javadocs-grouping,javadocs-queries,javadocs-queryparser,javadocs-highlighter,javadocs-memory,javadocs-misc,javadocs-spatial,javadocs-test-framework"/>
+  <target name="lucene-javadocs" depends="javadocs-lucene-core,javadocs-analyzers-common,javadocs-analyzers-icu,javadocs-analyzers-kuromoji,javadocs-analyzers-phonetic,javadocs-analyzers-smartcn,javadocs-analyzers-morfologik,javadocs-analyzers-stempel,javadocs-analyzers-uima,javadocs-backward-codecs,javadocs-codecs,javadocs-expressions,javadocs-suggest,javadocs-grouping,javadocs-queries,javadocs-queryparser,javadocs-highlighter,javadocs-memory,javadocs-misc,javadocs-spatial,javadocs-join,javadocs-test-framework"/>
 
   <!-- create javadocs for the current module -->
   <target name="javadocs" depends="compile-core,define-lucene-javadoc-url,lucene-javadocs,javadocs-solr-core,check-javadocs-uptodate" unless="javadocs-uptodate-${name}">
@@ -320,6 +316,7 @@
           <link offline="true" href="${lucene.javadoc.url}expressions" packagelistloc="${lucenedocs}/expressions"/>
           <link offline="true" href="${lucene.javadoc.url}suggest" packagelistloc="${lucenedocs}/suggest"/>
           <link offline="true" href="${lucene.javadoc.url}grouping" packagelistloc="${lucenedocs}/grouping"/>
+          <link offline="true" href="${lucene.javadoc.url}join" packagelistloc="${lucenedocs}/join"/>
           <link offline="true" href="${lucene.javadoc.url}queries" packagelistloc="${lucenedocs}/queries"/>
           <link offline="true" href="${lucene.javadoc.url}queryparser" packagelistloc="${lucenedocs}/queryparser"/>
           <link offline="true" href="${lucene.javadoc.url}highlighter" packagelistloc="${lucenedocs}/highlighter"/>
@@ -487,10 +484,10 @@
     <contrib-crawl target="jar-core"/>
   </target>
 
-  <target name="contribs-add-to-war">
+  <target name="contribs-add-to-webapp">
     <mkdir dir="${dest}/web"/>
     <delete dir="${dest}/web" includes="**/*" failonerror="false"/>
-    <contrib-crawl target="add-to-war"/>
+    <contrib-crawl target="add-to-webapp"/>
   </target>
   
   <!-- Forbidden API Task, customizations for Solr -->

@@ -32,12 +32,6 @@ API Changes
 * LUCENE-6067: Accountable.getChildResources has a default
   implementation returning the empty list.  (Robert Muir)
 
-* LUCENE-6531: PhraseQuery is now immutable and can be built using the
-  PhraseQuery.Builder class. (Adrien Grand)
-
-* LUCENE-6570: BooleanQuery is now immutable and can be built using the
-  BooleanQuery.Builder class. (Adrien Grand)
-
 * LUCENE-6583: FilteredQuery has been removed. Instead, you can construct a
   BooleanQuery with one MUST clause for the query, and one FILTER clause for
   the filter. (Adrien Grand)
@@ -45,6 +39,9 @@ API Changes
 * LUCENE-6651: AttributeImpl#reflectWith(AttributeReflector) was made
   abstract and has no reflection-based default implementation anymore.
   (Uwe Schindler)
+
+* LUCENE-6706: PayloadTermQuery and PayloadNearQuery have been removed.
+  Instead, use PayloadScoreQuery to wrap any SpanQuery. (Alan Woodward)
 
 ======================= Lucene 5.3.0 =======================
 
@@ -147,6 +144,24 @@ New Features
 * LUCENE-6695: Added a new BlendedTermQuery to blend statistics across several
   terms. (Simon Willnauer, Adrien Grand)
 
+* LUCENE-6706: Added a new PayloadScoreQuery that generalises the behaviour of
+  PayloadTermQuery and PayloadNearQuery to all Span queries. (Alan Woodward)
+
+* LUCENE-6697: Add experimental range tree doc values format and
+  queries, based on a 1D version of the spatial BKD tree, for a faster
+  and smaller alternative to postings-based numeric and binary term
+  filtering.  Range trees can also handle values larger than 64 bits.
+  (Adrien Grand, Mike McCandless)
+
+* LUCENE-6647: Add GeoHash string utility APIs (Nick Knize via Mike
+  McCandless).
+
+* LUCENE-6710: GeoPointField now uses full 64 bits (up from 62) to encode
+  lat/lon (Nick Knize via Mike McCandless).
+
+* LUCENE-6580: SpanNearQuery now allows defined-width gaps in its subqueries
+  (Alan Woodward, Adrien Grand).
+
 API Changes
 
 * LUCENE-6508: Simplify Lock api, there is now just 
@@ -211,6 +226,17 @@ API Changes
 
 * LUCENE-6607: Factor out geo3d into its own spatial3d module.  (Karl
   Wright, Nick Knize, David Smiley, Mike McCandless)
+
+* LUCENE-6531: PhraseQuery is now immutable and can be built using the
+  PhraseQuery.Builder class. (Adrien Grand)
+
+* LUCENE-6570: BooleanQuery is now immutable and can be built using the
+  BooleanQuery.Builder class. (Adrien Grand)
+
+* LUCENE-6702: NRTSuggester: Add a method to inject context values at index time
+  in ContextSuggestField. Simplify ContextQuery logic for extracting contexts and
+  add dedicated method to consider all context values at query time.
+  (Areek Zillur, Mike McCandless)
 
 Bug fixes
 
@@ -281,6 +307,15 @@ Bug fixes
 * LUCENE-6696: Fix FilterDirectoryReader.close() to never close the
   underlying reader several times. (Adrien Grand)
 
+* LUCENE-6334: FastVectorHighlighter failed to highlight phrases across
+  more than one value in a multi-valued field. (Chris Earle, Nik Everett
+  via Mike McCandless)
+
+* LUCENE-6704: GeoPointDistanceQuery was visiting too many term ranges,
+  consuming too much heap for a large radius (Nick Knize via Mike McCandless)
+  
+* SOLR-5882: fix ScoreMode.Min at ToParentBlockJoinQuery (Mikhail Khludnev)
+
 Changes in Runtime Behavior
 
 * LUCENE-6501: The subreader structure in ParallelCompositeReader
@@ -333,6 +368,16 @@ Changes in Runtime Behavior
   when an unexpected, tragic exception strikes while merging. (Robert
   Muir, Mike McCandless) 
 
+* LUCENE-6691: SortingMergePolicy.isSorted now considers FilterLeafReader instances.
+  EarlyTerminatingSortingCollector.terminatedEarly accessor added.
+  TestEarlyTerminatingSortingCollector.testTerminatedEarly test added.
+  (Christine Poerschke)
+
+* LUCENE-6609: Add getSortField impls to many subclasses of FieldCacheSource which return
+  the most direct SortField implementation.  In many trivial sort by ValueSource usages, this
+  will result in less RAM, and more precise sorting of extreme values due to no longer
+  converting to double. (hossman)
+
 Optimizations
 
 * LUCENE-6548: Some optimizations for BlockTree's intersect with very
@@ -367,6 +412,10 @@ Optimizations
 
 * LUCENE-6690: Sped up MultiTermsEnum.next() on high-cardinality fields.
   (Adrien Grand)
+
+* LUCENE-6621: Removed two unused variables in analysis/stempel/src/java/org/
+  egothor/stemmer/Compile.java
+  (Rishabh Patel via Christine Poerschke)
 
 Build
 

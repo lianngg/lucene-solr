@@ -27,9 +27,9 @@ import java.util.ArrayList;
 public final class GeoUtils {
   private static final short MIN_LON = -180;
   private static final short MIN_LAT = -90;
-  public static final short BITS = 31;
-  private static final double LON_SCALE = (0x1L<<BITS)/360.0D;
-  private static final double LAT_SCALE = (0x1L<<BITS)/180.0D;
+  public static final short BITS = 32;
+  private static final double LON_SCALE = ((0x1L<<BITS)-1)/360.0D;
+  private static final double LAT_SCALE = ((0x1L<<BITS)-1)/180.0D;
   public static final double TOLERANCE = 1E-6;
 
   /** Minimum longitude value. */
@@ -290,17 +290,25 @@ public final class GeoUtils {
         !pointInPolygon(shapeX, shapeY, rMaxY, rMaxX) || !pointInPolygon(shapeX, shapeY, rMaxY, rMinX));
   }
 
-  private static boolean rectAnyCornersInCirlce( final double rMinX, final double rMinY, final double rMaxX, final double rMaxY,
-                                                 final double centerLon, final double centerLat, final double radius) {
+  private static boolean rectAnyCornersOutsideCircle(final double rMinX, final double rMinY, final double rMaxX, final double rMaxY,
+                                                     final double centerLon, final double centerLat, final double radius) {
     return (SloppyMath.haversin(centerLat, centerLon, rMinY, rMinX)*1000.0 > radius
         || SloppyMath.haversin(centerLat, centerLon, rMaxY, rMinX)*1000.0 > radius
         || SloppyMath.haversin(centerLat, centerLon, rMaxY, rMaxX)*1000.0 > radius
         || SloppyMath.haversin(centerLat, centerLon, rMinY, rMaxX)*1000.0 > radius);
   }
 
+  private static boolean rectAnyCornersInCircle(final double rMinX, final double rMinY, final double rMaxX, final double rMaxY,
+                                                final double centerLon, final double centerLat, final double radius) {
+    return (SloppyMath.haversin(centerLat, centerLon, rMinY, rMinX)*1000.0 <= radius
+        || SloppyMath.haversin(centerLat, centerLon, rMaxY, rMinX)*1000.0 <= radius
+        || SloppyMath.haversin(centerLat, centerLon, rMaxY, rMaxX)*1000.0 <= radius
+        || SloppyMath.haversin(centerLat, centerLon, rMinY, rMaxX)*1000.0 <= radius);
+  }
+
   public static boolean rectWithinCircle(final double rMinX, final double rMinY, final double rMaxX, final double rMaxY,
                                          final double centerLon, final double centerLat, final double radius) {
-    return !(rectAnyCornersInCirlce(rMinX, rMinY, rMaxX, rMaxY, centerLon, centerLat, radius));
+    return !(rectAnyCornersOutsideCircle(rMinX, rMinY, rMaxX, rMaxY, centerLon, centerLat, radius));
   }
 
   /**
@@ -308,12 +316,20 @@ public final class GeoUtils {
    */
   public static boolean rectCrossesCircle(final double rMinX, final double rMinY, final double rMaxX, final double rMaxY,
                                           final double centerLon, final double centerLat, final double radius) {
-
-    return rectAnyCornersInCirlce(rMinX, rMinY, rMaxX, rMaxY, centerLon, centerLat, radius)
+    return rectAnyCornersInCircle(rMinX, rMinY, rMaxX, rMaxY, centerLon, centerLat, radius)
         || lineCrossesSphere(rMinX, rMinY, 0, rMaxX, rMinY, 0, centerLon, centerLat, 0, radius)
         || lineCrossesSphere(rMaxX, rMinY, 0, rMaxX, rMaxY, 0, centerLon, centerLat, 0, radius)
         || lineCrossesSphere(rMaxX, rMaxY, 0, rMinX, rMaxY, 0, centerLon, centerLat, 0, radius)
         || lineCrossesSphere(rMinX, rMaxY, 0, rMinX, rMinY, 0, centerLon, centerLat, 0, radius);
+  }
+
+  public static boolean circleWithinRect(double rMinX, final double rMinY, final double rMaxX, final double rMaxY,
+  final double centerLon, final double centerLat, final double radius) {
+    return !(centerLon < rMinX || centerLon > rMaxX || centerLat > rMaxY || centerLat < rMinY
+        || SloppyMath.haversin(rMinY, centerLon, centerLat, centerLon) < radius
+        || SloppyMath.haversin(rMaxY, centerLon, centerLat, centerLon) < radius
+        || SloppyMath.haversin(centerLat, rMinX, centerLat, centerLon) < radius
+        || SloppyMath.haversin(centerLat, rMaxX, centerLat, centerLon) < radius);
   }
 
   /**

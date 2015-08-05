@@ -17,6 +17,7 @@ package org.apache.lucene.search;
  * limitations under the License.
  */
 
+import java.math.BigInteger;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -32,6 +33,8 @@ import org.apache.lucene.util.NumericUtils;
 /**
  * computes all ranges along a space-filling curve that represents
  * the given bounding box and enumerates all terms contained within those ranges
+ *
+ *  @lucene.experimental
  */
 class GeoPointTermsEnum extends FilteredTermsEnum {
   protected final double minLon;
@@ -39,7 +42,7 @@ class GeoPointTermsEnum extends FilteredTermsEnum {
   protected final double maxLon;
   protected final double maxLat;
 
-  private Range currentRange;
+  protected Range currentRange;
   private BytesRef currentLowerBound, currentUpperBound;
 
   private final List<Range> rangeBounds = new LinkedList<>();
@@ -65,7 +68,13 @@ class GeoPointTermsEnum extends FilteredTermsEnum {
    */
   private final void computeRange(long term, final short shift) {
     final long split = term | (0x1L<<shift);
-    final long upperMax = term | ((0x1L<<(shift+1))-1);
+    assert shift < 64;
+    final long upperMax;
+    if (shift < 63) {
+      upperMax = term | ((1L << (shift+1))-1);
+    } else {
+      upperMax = 0xffffffffffffffffL;
+    }
     final long lowerMax = split-1;
 
     relateAndRecurse(term, lowerMax, shift);
@@ -86,26 +95,49 @@ class GeoPointTermsEnum extends FilteredTermsEnum {
     final double maxLon = GeoUtils.mortonUnhashLon(end);
     final double maxLat = GeoUtils.mortonUnhashLat(end);
 
-    final short level = (short)(62-res>>>1);
+    final short level = (short)((GeoUtils.BITS<<1)-res>>>1);
 
     // if cell is within and a factor of the precision step, or it crosses the edge of the shape add the range
-    final boolean within = res% GeoPointField.PRECISION_STEP == 0 && cellWithin(minLon, minLat, maxLon, maxLat);
-    if (within || (level == DETAIL_LEVEL && cellCrosses(minLon, minLat, maxLon, maxLat))) {
+    final boolean within = res % GeoPointField.PRECISION_STEP == 0 && cellWithin(minLon, minLat, maxLon, maxLat);
+    if (within || (level == DETAIL_LEVEL && cellIntersectsShape(minLon, minLat, maxLon, maxLat))) {
       rangeBounds.add(new Range(start, end, res, level, !within));
-    } else if (level <= DETAIL_LEVEL && cellIntersects(minLon, minLat, maxLon, maxLat)) {
-      computeRange(start, (short)(res - 1));
+    } else if (level < DETAIL_LEVEL && cellIntersectsMBR(minLon, minLat, maxLon, maxLat)) {
+      computeRange(start, (short) (res - 1));
     }
   }
 
+  /**
+   * Determine whether the quad-cell crosses the shape
+   */
   protected boolean cellCrosses(final double minLon, final double minLat, final double maxLon, final double maxLat) {
     return GeoUtils.rectCrosses(minLon, minLat, maxLon, maxLat, this.minLon, this.minLat, this.maxLon, this.maxLat);
   }
 
+  /**
+   * Determine whether quad-cell is within the shape
+   */
   protected boolean cellWithin(final double minLon, final double minLat, final double maxLon, final double maxLat) {
     return GeoUtils.rectWithin(minLon, minLat, maxLon, maxLat, this.minLon, this.minLat, this.maxLon, this.maxLat);
   }
 
-  protected boolean cellIntersects(final double minLon, final double minLat, final double maxLon, final double maxLat) {
+  /**
+   * Return whether quad-cell contains the bounding box of this shape
+   */
+  protected boolean cellContains(final double minLon, final double minLat, final double maxLon, final double maxLat) {
+    return GeoUtils.rectWithin(this.minLon, this.minLat, this.maxLon, this.maxLat, minLon, minLat, maxLon, maxLat);
+  }
+
+  /**
+   * Default shape is a rectangle, so this returns the same as {@code cellIntersectsMBR}
+   */
+  protected boolean cellIntersectsShape(final double minLon, final double minLat, final double maxLon, final double maxLat) {
+    return cellIntersectsMBR(minLon, minLat, maxLon, maxLat);
+  }
+
+  /**
+   * Primary driver for cells intersecting shape boundaries
+   */
+  protected boolean cellIntersectsMBR(final double minLon, final double minLat, final double maxLon, final double maxLat) {
     return GeoUtils.rectIntersects(minLon, minLat, maxLon, maxLat, this.minLon, this.minLat, this.maxLon, this.maxLat);
   }
 
@@ -166,14 +198,19 @@ class GeoPointTermsEnum extends FilteredTermsEnum {
       nextRange();
     }
 
-    // final-filter boundary ranges by bounding box
     if (currentRange.boundary) {
-      final long val = NumericUtils.prefixCodedToLong(term);
-      final double lon = GeoUtils.mortonUnhashLon(val);
-      final double lat = GeoUtils.mortonUnhashLat(val);
-      if (!GeoUtils.bboxContains(lon, lat, minLon, minLat, maxLon, maxLat)) {
-        return AcceptStatus.NO;
-      }
+      return postFilterBoundary(term);
+    }
+
+    return AcceptStatus.YES;
+  }
+
+  protected AcceptStatus postFilterBoundary(BytesRef term) {
+    final long val = NumericUtils.prefixCodedToLong(term);
+    final double lon = GeoUtils.mortonUnhashLon(val);
+    final double lat = GeoUtils.mortonUnhashLat(val);
+    if (!GeoUtils.bboxContains(lon, lat, minLon, minLat, maxLon, maxLat)) {
+      return AcceptStatus.NO;
     }
     return AcceptStatus.YES;
   }

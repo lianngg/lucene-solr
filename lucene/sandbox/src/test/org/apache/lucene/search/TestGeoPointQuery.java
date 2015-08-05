@@ -41,10 +41,12 @@ import org.apache.lucene.index.RandomIndexWriter;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.util.FixedBitSet;
+import org.apache.lucene.util.GeoDistanceUtils;
 import org.apache.lucene.util.GeoUtils;
 import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.LuceneTestCase;
 import org.apache.lucene.util.SloppyMath;
+import org.apache.lucene.util.TestGeoUtils;
 import org.apache.lucene.util.TestUtil;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -63,39 +65,14 @@ public class TestGeoPointQuery extends LuceneTestCase {
   private static final String FIELD_NAME = "geoField";
 
   // error threshold for point-distance queries (in meters)
-  private static final int DISTANCE_ERR = 700;
-
-  // Global bounding box we will "cover" in the random test; we have to make this "smallish" else the queries take very long:
-  private static double originLat;
-  private static double originLon;
-//  private static double range;
-  private static double lonRange;
-  private static double latRange;
+  // @todo haversine is sloppy, would be good to have a better heuristic for
+  // determining the possible haversine error
+  private static final int DISTANCE_ERR = 1000;
 
   @BeforeClass
   public static void beforeClass() throws Exception {
     directory = newDirectory();
 
-    // when we randomly test the full lat/lon space it can result in very very slow query times, this is due to the
-    // number of ranges that can be created in degenerate cases.
-
-    // Between 1.0 and 3.0:
-//    range = 2*(random().nextDouble() + 0.5);
-    // Between 1.0 and 90.0
-    //lonRange = 1.0 + (90.0 - 1.0) * random().nextDouble();
-    //latRange = 1.0 + (45.0 - 1.0) * random().nextDouble();
-
-    // Between 1.0 and 3.0:
-    lonRange = 2*(random().nextDouble() + 0.5);
-    latRange = 2*(random().nextDouble() + 0.5);
-
-    originLon = GeoUtils.MIN_LON_INCL + lonRange + (GeoUtils.MAX_LON_INCL - GeoUtils.MIN_LON_INCL - 2*lonRange) * random().nextDouble();
-    originLon = GeoUtils.normalizeLon(originLon);
-    originLat = GeoUtils.MIN_LAT_INCL + latRange + (GeoUtils.MAX_LAT_INCL - GeoUtils.MIN_LAT_INCL - 2*latRange) * random().nextDouble();
-    originLat = GeoUtils.normalizeLat(originLat);
-    if (VERBOSE) {
-      System.out.println("TEST: originLon=" + originLon + " lonRange= " + lonRange + " originLat=" + originLat + " latRange=" + latRange);
-    }
     RandomIndexWriter writer = new RandomIndexWriter(random(), directory,
             newIndexWriterConfig(new MockAnalyzer(random()))
                     .setMaxBufferedDocs(TestUtil.nextInt(random(), 100, 1000))
@@ -118,6 +95,7 @@ public class TestGeoPointQuery extends LuceneTestCase {
          new GeoPointField(FIELD_NAME, -14.796283808944777, -62.455081198245665, storedPoint),
          new GeoPointField(FIELD_NAME, -178.8538113027811, 32.94823588839368, storedPoint),
          new GeoPointField(FIELD_NAME, 178.8538113027811, 32.94823588839368, storedPoint),
+         new GeoPointField(FIELD_NAME, -73.998776, 40.720611, storedPoint),
          new GeoPointField(FIELD_NAME, -179.5, -44.5, storedPoint)};
 
     for (GeoPointField p : pts) {
@@ -202,7 +180,13 @@ public class TestGeoPointQuery extends LuceneTestCase {
   @Test
   public void testWholeMap() throws Exception {
     TopDocs td = bboxQuery(-179.9, -89.9, 179.9, 89.9, 20);
-    assertEquals("testWholeMap failed", 14, td.totalHits);
+    assertEquals("testWholeMap failed", 15, td.totalHits);
+  }
+
+  @Test
+  public void smallTest() throws Exception {
+    TopDocs td = geoDistanceQuery(-73.998776, 40.720611, 1, 20);
+    assertEquals("smallTest failed", 1, td.totalHits);
   }
 
   @Test
@@ -219,6 +203,15 @@ public class TestGeoPointQuery extends LuceneTestCase {
   public void testGeoDistanceQuery() throws Exception {
     TopDocs td = geoDistanceQuery(-96.4538113027811, 32.94823588839368, 6000, 20);
     assertEquals("GeoDistanceQuery failed", 1, td.totalHits);
+  }
+
+  /**
+   * LUCENE-6704
+   */
+  @Nightly
+  public void testGeoDistanceQueryHuge() throws Exception {
+    TopDocs td = geoDistanceQuery(-96.4538113027811, 32.94823588839368, 1000000, 20);
+    assertEquals("GeoDistanceQuery failed", 6, td.totalHits);
   }
 
   @Test
@@ -244,6 +237,13 @@ public class TestGeoPointQuery extends LuceneTestCase {
 
   public void testRandom() throws Exception {
     doTestRandom(10000);
+  }
+
+  @Test
+  public void testMortonEncoding() throws Exception {
+    long hash = GeoUtils.mortonHash(180, 90);
+    assertEquals(180.0, GeoUtils.mortonUnhashLon(hash), 0);
+    assertEquals(90.0, GeoUtils.mortonUnhashLat(hash), 0);
   }
 
   @Nightly
@@ -287,13 +287,13 @@ public class TestGeoPointQuery extends LuceneTestCase {
         if (x == 0) {
           // Identical lat to old point
           lats[docID] = lats[oldDocID];
-          lons[docID] = randomLon();
+          lons[docID] = TestGeoUtils.randomLon();
           if (VERBOSE) {
             //System.out.println("  doc=" + docID + " lat=" + lats[docID] + " lon=" + lons[docID] + " (same lat as doc=" + oldDocID + ")");
           }
         } else if (x == 1) {
           // Identical lon to old point
-          lats[docID] = randomLat();
+          lats[docID] = TestGeoUtils.randomLat();
           lons[docID] = lons[oldDocID];
           if (VERBOSE) {
             //System.out.println("  doc=" + docID + " lat=" + lats[docID] + " lon=" + lons[docID] + " (same lon as doc=" + oldDocID + ")");
@@ -308,8 +308,8 @@ public class TestGeoPointQuery extends LuceneTestCase {
           }
         }
       } else {
-        lats[docID] = randomLat();
-        lons[docID] = randomLon();
+        lats[docID] = TestGeoUtils.randomLat();
+        lons[docID] = TestGeoUtils.randomLon();
         haveRealDoc = true;
         if (VERBOSE) {
           //System.out.println("  doc=" + docID + " lat=" + lats[docID] + " lon=" + lons[docID]);
@@ -425,8 +425,8 @@ public class TestGeoPointQuery extends LuceneTestCase {
                 double centerLon = bbox.minLon + ((bbox.maxLon - bbox.minLon)/2.0);
 
                 // radius (in meters) as a function of the random generated bbox
-                // TODO: change 100 back to 1000
-                final double radius = SloppyMath.haversin(centerLat, centerLon, bbox.minLat, centerLon)*100;
+                final double radius = GeoDistanceUtils.vincentyDistance(centerLon, centerLat, centerLon, bbox.minLat);
+                //final double radius = SloppyMath.haversin(centerLat, centerLon, bbox.minLat, centerLon)*1000;
                 if (VERBOSE) {
                   System.out.println("\t radius = " + radius);
                 }
@@ -599,19 +599,11 @@ public class TestGeoPointQuery extends LuceneTestCase {
          || (tMaxLon - tLon) == 0 || (tMaxLat - tLat) == 0);
   }
 
-  private static double randomLat() {
-    return GeoUtils.normalizeLat(originLat + latRange * (random().nextDouble() - 0.5));
-  }
-
-  private static double randomLon() {
-    return GeoUtils.normalizeLon(originLon + lonRange * (random().nextDouble() - 0.5));
-  }
-
   private static GeoBoundingBox randomBBox() {
-    double lat0 = randomLat();
-    double lat1 = randomLat();
-    double lon0 = randomLon();
-    double lon1 = randomLon();
+    double lat0 = TestGeoUtils.randomLat();
+    double lat1 = TestGeoUtils.randomLat();
+    double lon0 = TestGeoUtils.randomLon();
+    double lon1 = TestGeoUtils.randomLon();
 
     if (lat1 < lat0) {
       double x = lat0;

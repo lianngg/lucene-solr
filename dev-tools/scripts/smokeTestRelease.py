@@ -206,13 +206,7 @@ def checkJARMetaData(desc, jarFile, svnRevision, version):
     notice = decodeUTF8(z.read(NOTICE_FILE_NAME))
     license = decodeUTF8(z.read(LICENSE_FILE_NAME))
 
-    idx = desc.find('inside WAR file')
-    if idx != -1:
-      desc2 = desc[:idx]
-    else:
-      desc2 = desc
-
-    justFileName = os.path.split(desc2)[1]
+    justFileName = os.path.split(desc)[1]
     
     if justFileName.lower().find('solr') != -1:
       if SOLR_LICENSE is None:
@@ -277,45 +271,6 @@ def checkAllJARs(topDir, project, svnRevision, version, tmpDir, baseURL):
                                % (fullPath, luceneDistFilenames[jarFilename]))
 
 
-def checkSolrWAR(warFileName, svnRevision, version, tmpDir, baseURL):
-
-  """
-  Crawls for JARs inside the WAR and ensures there are no classes
-  under java.* or javax.* namespace.
-  """
-
-  print('    verify WAR metadata/contained JAR identity/no javax.* or java.* classes...')
-
-  checkJARMetaData(warFileName, warFileName, svnRevision, version)
-
-  distFilenames = dict()
-  for file in getBinaryDistFiles('lucene', tmpDir, version, baseURL):
-    distFilenames[os.path.basename(file)] = file
-
-  with zipfile.ZipFile(warFileName, 'r') as z:
-    for name in z.namelist():
-      if name.endswith('.jar'):
-        jarInsideWarContents = z.read(name)
-        noJavaPackageClasses('JAR file %s inside WAR file %s' % (name, warFileName),
-                             io.BytesIO(jarInsideWarContents))
-        if name.lower().find('lucene') != -1 or name.lower().find('solr') != -1:
-          checkJARMetaData('JAR file %s inside WAR file %s' % (name, warFileName),
-                           io.BytesIO(jarInsideWarContents),
-                           svnRevision,
-                           version)
-        if name.lower().find('lucene') != -1:              
-          jarInsideWarFilename = os.path.basename(name)
-          if jarInsideWarFilename not in distFilenames:
-            raise RuntimeError('Artifact %s in %s is not present in Lucene binary distribution'
-                              % (name, warFileName))
-          distJarName = distFilenames[jarInsideWarFilename]
-          with open(distJarName, "rb", buffering=0) as distJarFile:
-            distJarContents = distJarFile.readall()
-          if jarInsideWarContents != distJarContents:
-            raise RuntimeError('Artifact %s in %s is not identical to %s in Lucene binary distribution'
-                              % (name, warFileName, distJarName))
-          
-        
 def checkSigs(project, urlString, version, tmpDir, isSigned):
 
   print('  test basics...')
@@ -755,8 +710,6 @@ def verifyUnpacked(java, project, artifact, unpackPath, svnRevision, version, te
       checkJavadocpath('%s/docs' % unpackPath)
 
     else:
-      checkSolrWAR('%s/server/webapps/solr.war' % unpackPath, svnRevision, version, tmpDir, baseURL)
-
       print('    copying unpacked distribution for Java 8 ...')
       java8UnpackPath = '%s-java8' % unpackPath
       if os.path.exists(java8UnpackPath):
