@@ -23,6 +23,7 @@ import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.embedded.EmbeddedSolrServer;
 import org.apache.solr.client.solrj.response.QueryResponse;
+import org.apache.solr.client.solrj.response.RangeFacet;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.util.NamedList;
@@ -1164,6 +1165,16 @@ public class TestIntervalFaceting extends SolrTestCaseJ4 {
     // For testing facet.range
     q = new SolrQuery();
     q.setQuery("*:*");
+    q.addIntervalRangeFacets("test_i_dv", new String[]{"[0,1]","[2,*]"});
+    response = client.query(q);
+    assertEquals(1, response.getFacetRanges().size());
+    assertEquals("test_i_dv", response.getFacetRanges().get(0).getName());
+    assertEquals(2, response.getFacetRanges().get(0).getIntervalSets().size());
+    assertEquals("[0,1]", response.getFacetRanges().get(0).getIntervalSets().get(0));
+    assertEquals("[2,*]", response.getFacetRanges().get(0).getIntervalSets().get(1));
+
+    q = new SolrQuery();
+    q.setQuery("*:*");
     q.setFacet(true);
     q.add("facet.range", "{!key=foo}test_i_dv");
     q.add("f.test_i_dv.facet.range.set", "{!key=first}[0,1]");
@@ -1177,7 +1188,40 @@ public class TestIntervalFaceting extends SolrTestCaseJ4 {
     
   }
   
-  
+  @Test
+  public void testSolrJWithMultipleRangeFacets() throws Exception  {
+    assertU(adoc("id", "1", "test_i_dv", "0"));
+    assertU(adoc("id", "2", "test_i_dv", "1"));
+    assertU(adoc("id", "3", "test_i_dv", "2"));
+    assertU(commit());
+
+    // Don't close this client, it would shutdown the CoreContainer
+    @SuppressWarnings("resource")
+    SolrClient client = new EmbeddedSolrServer(h.getCoreContainer(), h.coreName);
+
+    SolrQuery q = new SolrQuery();
+    q.setQuery("*:*");
+    q.addIntervalRangeFacets("test_i_dv", new String[]{"[0,1]","[2,*]"});
+    q.addNumericRangeFacet("test_i_dv", 0, 6, 2);
+
+    QueryResponse response = client.query(q);
+    assertEquals(2, response.getFacetRanges().size());
+    // For testing numeric range facet
+    assertEquals("test_i_dv", response.getFacetRanges().get(0).getName());
+    assertEquals(0, response.getFacetRanges().get(0).getStart());
+    assertEquals(6, response.getFacetRanges().get(0).getEnd());
+    assertEquals(2, response.getFacetRanges().get(0).getGap());
+    assertEquals(2, ((RangeFacet.Count) response.getFacetRanges().get(0).getCounts().get(0)).getCount());
+    assertEquals(1, ((RangeFacet.Count) response.getFacetRanges().get(0).getCounts().get(1)).getCount());
+    assertEquals(0, ((RangeFacet.Count) response.getFacetRanges().get(0).getCounts().get(2)).getCount());
+    // For testing interval range facet
+    assertEquals("test_i_dv", response.getFacetRanges().get(1).getName());
+    assertEquals(2, response.getFacetRanges().get(1).getIntervalSets().size());
+    assertEquals("[0,1]", response.getFacetRanges().get(1).getIntervalSets().get(0));
+    assertEquals("[2,*]", response.getFacetRanges().get(1).getIntervalSets().get(1));
+    assertEquals(2, ((RangeFacet.Count) response.getFacetRanges().get(1).getCounts().get(0)).getCount());
+    assertEquals(1, ((RangeFacet.Count) response.getFacetRanges().get(1).getCounts().get(1)).getCount());
+  }
 
   private void assertIntervalQueriesNumeric(String field) {
     assertIntervalQuery(field, "[0,1]", "2");

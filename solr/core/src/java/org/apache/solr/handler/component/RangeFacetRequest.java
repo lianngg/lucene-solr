@@ -107,7 +107,7 @@ public class RangeFacetRequest extends FacetComponent.FacetBase {
       this.endObj = null;
       return;
     }
-    this.facetIntervalSets = null;
+    this.facetIntervalSets = params.getFieldParams(facetOn, FacetParams.FACET_RANGE_SET);;
 
     String methodStr = params.get(FacetParams.FACET_RANGE_METHOD);
     FacetParams.FacetRangeMethod method = (methodStr == null ? FacetParams.FacetRangeMethod.getDefault() : FacetParams.FacetRangeMethod.get(methodStr));

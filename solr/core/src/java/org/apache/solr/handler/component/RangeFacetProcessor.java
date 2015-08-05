@@ -77,11 +77,11 @@ public class RangeFacetProcessor extends SimpleFacets {
 
     if (rangeFacetRequests.isEmpty()) return resOuter;
     for (RangeFacetRequest rangeFacetRequest : rangeFacetRequests) {
+      if (rangeFacetRequest.getGap() != null) {
+        getFacetRangeCounts(rangeFacetRequest, resOuter);
+      }
       if (rangeFacetRequest.getFacetIntervalSets() != null) {
         getFacetIntervalCounts(rangeFacetRequest, resOuter);
-      }
-      else {
-        getFacetRangeCounts(rangeFacetRequest, resOuter);
       }
     }
 
@@ -107,10 +107,6 @@ public class RangeFacetProcessor extends SimpleFacets {
     final ParsedParams parsed = parseParams(FacetParams.FACET_RANGE, field);
     String[] intervalStrs = parsed.required.getFieldParams(parsed.facetValue, FacetParams.FACET_RANGE_SET);
     SchemaField schemaField = searcher.getCore().getLatestSchema().getField(parsed.facetValue);
-    if (rangeFacetRequest.isGroupFacet()) {
-      throw new SolrException(SolrException.ErrorCode.BAD_REQUEST,
-          "Interval Faceting can't be used with " + GroupParams.GROUP_FACET);
-    }
     NamedList<Object> counts = new SimpleOrderedMap<>();
     IntervalFacets intervalFacets = new IntervalFacets(schemaField, searcher, parsed.docs, intervalStrs, parsed.params);
     NamedList<Integer> result = new SimpleOrderedMap<>();
