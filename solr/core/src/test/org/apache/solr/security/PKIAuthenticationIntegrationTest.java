@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 
 import org.apache.solr.SolrTestCaseJ4;
+import org.apache.solr.client.solrj.embedded.JettySolrRunner;
 import org.apache.solr.client.solrj.request.QueryRequest;
 import org.apache.solr.cloud.AbstractFullDistribZkTestBase;
 import org.apache.solr.common.cloud.ZkStateReader;
@@ -45,21 +46,21 @@ public class PKIAuthenticationIntegrationTest extends AbstractFullDistribZkTestB
 
   static final int TIMEOUT = 10000;
 
-  public void distribSetUp() throws Exception {
-    super.distribSetUp();
+  @Test
+  public void testPkiAuth() throws Exception {
+    waitForThingsToLevelOut(10);
 
     byte[] bytes = Utils.toJSON(makeMap("authorization", singletonMap("class", MockAuthorizationPlugin.class.getName()),
         "authentication", singletonMap("class", MockAuthenticationPlugin.class.getName())));
 
     try (ZkStateReader zkStateReader = new ZkStateReader(zkServer.getZkAddress(),
         TIMEOUT, TIMEOUT)) {
-      zkStateReader.getZkClient().create(ZkStateReader.SOLR_SECURITY_CONF_PATH, bytes, CreateMode.PERSISTENT, true);
+      zkStateReader.getZkClient().setData(ZkStateReader.SOLR_SECURITY_CONF_PATH, bytes, true);
     }
-  }
-
-  @Test
-  public void testPkiAuth() throws Exception {
-    waitForThingsToLevelOut(10);
+    for (JettySolrRunner jetty : jettys) {
+      String baseUrl = jetty.getBaseUrl().toString();
+      TestAuthorizationFramework.verifySecurityStatus(cloudClient.getLbClient().getHttpClient(), baseUrl + "/admin/authorization", "authorization/class", MockAuthorizationPlugin.class.getName(), 20);
+    }
     log.info("Starting test");
     ModifiableSolrParams params = new ModifiableSolrParams();
     params.add("q", "*:*");
@@ -94,15 +95,8 @@ public class PKIAuthenticationIntegrationTest extends AbstractFullDistribZkTestB
       }
     };
     QueryRequest query = new QueryRequest(params);
-    LocalSolrQueryRequest lsqr = new LocalSolrQueryRequest(null, new ModifiableSolrParams()) {
-      @Override
-      public Principal getUserPrincipal() {
-        return null;
-      }
-    };
     query.process(cloudClient);
-    log.info("count :{}", count);
-    assertTrue(count.get() > 2);
+    assertTrue("all nodes must get the user solr , no:of nodes got solr : " + count.get(),count.get() > 2);
   }
 
   @Override

@@ -43,6 +43,29 @@ API Changes
 * LUCENE-6706: PayloadTermQuery and PayloadNearQuery have been removed.
   Instead, use PayloadScoreQuery to wrap any SpanQuery. (Alan Woodward)
 
+======================= Lucene 5.4.0 =======================
+
+New Features
+
+* LUCENE-6720: New FunctionRangeQuery wrapper around ValueSourceScorer
+  (returned from ValueSource/FunctionValues.getRangeScorer()). (David Smiley)
+
+* LUCENE-6724: Add utility APIs to GeoHashUtils to compute neighbor
+  geohash cells (Nick Knize via Mike McCandless).
+
+Optimizations
+
+* LUCENE-6708: TopFieldCollector does not compute the score several times on the
+  same document anymore. (Adrien Grand)
+
+* LUCENE-6720: ValueSourceScorer, returned from
+  FunctionValues.getRangeScorer(), now uses TwoPhaseIterator. (David Smiley)
+
+Other
+
+* LUCENE-6417: Upgrade ANTLR used in expressions module to version 4.5.
+  (Jack Conradson via Uwe Schindler)
+
 ======================= Lucene 5.3.0 =======================
 
 New Features
@@ -242,6 +265,11 @@ API Changes
   add dedicated method to consider all context values at query time.
   (Areek Zillur, Mike McCandless)
 
+* LUCENE-6719: NumericUtils getMinInt, getMaxInt, getMinLong, getMaxLong now
+  return null if there are no terms for the specified field, previously these
+  methods returned primitive values and raised an undocumented NullPointerException
+  if there were no terms for the field. (hossman, Timothy Potter)
+
 Bug fixes
 
 * LUCENE-6500: ParallelCompositeReader did not always call
@@ -432,7 +460,7 @@ Optimizations
 
 * SOLR-7730: Speed up SlowCompositeReaderWrapper.getSortedSetDocValues() by
   avoiding merging FieldInfos just to check doc value type.
-  (Mikhail Khludnev, yonik)
+  (Paul Vasilyev, Yuriy Pakhomov, Mikhail Khludnev, yonik)
 
 Build
 

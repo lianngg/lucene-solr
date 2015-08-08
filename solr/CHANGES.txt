@@ -71,6 +71,58 @@ Other Changes
 * SOLR-7624: Remove deprecated zkCredientialsProvider element in solrcloud section of solr.xml.
   (Xu Zhang, Per Steffensen, Ramkumar Aiyengar, Mark Miller)
   
+==================  5.4.0 ==================
+
+Consult the LUCENE_CHANGES.txt file for additional, low level, changes in this release
+
+Versions of Major Components
+---------------------
+Apache Tika 1.7
+Carrot2 3.9.0
+Velocity 1.7 and Velocity Tools 2.0
+Apache UIMA 2.3.1
+Apache ZooKeeper 3.4.6
+Jetty 9.2.11.v20150529
+
+Upgrading from Solr 5.3
+-----------------------
+
+Detailed Change List
+----------------------
+
+New Features
+----------------------
+
+* SOLR-5756: A utility Collection API to move a collection from shared clusterstate.json (stateFormat=1,
+  default until 4.x) to the per-collection state.json stored in ZooKeeper (stateFormat=2,
+  default since 5.0) seamlessly without any application down-time.
+  Example:
+  http://localhost:8983/solr/admin/collections?action=MIGRATESTATEFORMAT&collection=<collection_name>
+  (Noble Paul, Scott Blum, shalin)
+
+* SOLR-7219: filterCache access added to the solr query syntax.
+  Example: description:HDTV OR filter(+promotion:tv +promotion_date:[NOW/DAY TO NOW/DAY+7DAY])
+  (yonik)
+
+* SOLR-7795: Fold Interval Faceting into Range Faceting. Interval faceting becomes a part of
+  range faceting family and could be deprecated in the future.
+  (Hsuan-Tzu Liang via Tomás Fernández Löbbe)
+
+Bug Fixes
+----------------------
+
+Optimizations
+----------------------
+
+Other Changes
+----------------------
+
+* SOLR-7831: Start Scripts: Allow a configurable stack size [-Xss] (Steve Davids via Mark Miller)
+
+* SOLR-7870: Write a test which asserts that requests to stateFormat=2 collection succeed on a node
+  even after all local replicas of that collection have been removed.
+  (Scott Blum via shalin)
+
 ==================  5.3.0 ==================
 
 Consult the LUCENE_CHANGES.txt file for additional, low level, changes in this release
@@ -187,9 +239,16 @@ New Features
 
 * SOLR-7220: Nested C-style comments in queries. (yonik)
 
-* SOLR-7795: Fold Interval Faceting into Range Faceting. Interval faceting becomes a part of
-  range faceting family and could be deprecated in the future.
-  (Hsuan-Tzu Liang via Tomás Fernández Löbbe)
+* SOLR-7757: Improved security framework where security components can be edited/reloaded, Solr
+  now watches /security.json. Components can choose to make their config editable
+  (Noble Paul, Anshum Gupta, Ishan Chattopadhyaya)
+
+* SOLR-7838: An authorizationPlugin interface where the access control rules are stored/managed in
+  ZooKeeper (Noble Paul, Anshum Gupta, Ishan Chattopadhyaya)
+
+* SOLR-7837: An AuthenticationPlugin which implements the HTTP BasicAuth protocol and stores credentials
+  securely in ZooKeeper (Noble Paul, Anshum Gupta,Ishan Chattopadhyaya)
+
 
 Bug Fixes
 ----------------------
@@ -286,6 +345,12 @@ Bug Fixes
 * SOLR-7818: Fixed distributed stats to be calculated for all the query terms. Earlier the stats were calculated with
   the terms that are present in the last shard of a distributed request. (Varun Thacker, Anshum Gupta)
 
+* SOLR-7866: VersionInfo caused an unhandled NPE when trying to determine the max value for the
+  version field. (Timothy Potter)
+
+* SOLR-7666 (and linked tickets): Many fixes to AngularJS Admin UI bringing it close to feature 
+  parity with existing UI. (Upayavira)
+
 Optimizations
 ----------------------
 
@@ -307,6 +372,9 @@ Optimizations
   (yonik)
 
 * SOLR-7840: ZkStateReader.updateClusterState fetches watched collections twice from ZK. (shalin)
+
+* SOLR-7875: Speedup SolrQueryTimeoutImpl. Avoid setting a timeout time when timeAllowed
+  parameter is not set. (Tomás Fernández Löbbe)
 
 Other Changes
 ----------------------
