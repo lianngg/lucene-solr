@@ -27,6 +27,7 @@ public abstract class RangeFacet<B, G> {
 
   private final String name;
   private final List<Count> counts = new ArrayList<>();
+  private final List<Count> intervals = new ArrayList<>();
 
   private final B start;
   private final B end;
@@ -53,12 +54,20 @@ public abstract class RangeFacet<B, G> {
     counts.add(new Count(value, count, this));
   }
 
+  public void addInterval(String value, int count) {
+    intervals.add(new Count(value, count, this));
+  }
+
   public String getName() {
     return name;
   }
 
   public List<Count> getCounts() {
     return counts;
+  }
+
+  public List<Count> getIntervals() {
+    return intervals;
   }
 
   public B getStart() {
@@ -91,16 +100,16 @@ public abstract class RangeFacet<B, G> {
 
   public static class Numeric extends RangeFacet<Number, Number> {
 
-    public Numeric(String name, Number start, Number end, Number gap, Number before, Number after, Number between) {
-      super(name, start, end, gap, before, after, between, null);
+    public Numeric(String name, Number start, Number end, Number gap, Number before, Number after, Number between, List<String> sets) {
+      super(name, start, end, gap, before, after, between, sets);
     }
 
   }
 
   public static class Date extends RangeFacet<java.util.Date, String> {
 
-    public Date(String name, java.util.Date start, java.util.Date end, String gap, Number before, Number after, Number between) {
-      super(name, start, end, gap, before, after, between, null);
+    public Date(String name, java.util.Date start, java.util.Date end, String gap, Number before, Number after, Number between, List<String> sets) {
+      super(name, start, end, gap, before, after, between, sets);
     }
 
   }

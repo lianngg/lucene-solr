@@ -1522,7 +1522,7 @@ public class DistributedFacetPivotSmallTest extends BaseDistributedSearchTestCas
   private List<RangeFacet> createExpectedRange(String key, int start, int end,
                                                int gap, int... values) {
     List<RangeFacet> expectedRanges = new ArrayList<>();
-    RangeFacet expectedPrices = new RangeFacet.Numeric(key, start, end, gap, null, null, null);
+    RangeFacet expectedPrices = new RangeFacet.Numeric(key, start, end, gap, null, null, null, null);
     expectedRanges.add(expectedPrices);
     int idx = 0;
     for (int range = start; range < end; range += gap) {

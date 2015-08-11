@@ -307,6 +307,7 @@ public class QueryResponseTest extends LuceneTestCase {
     
   }
 
+  @Test
   public void testIntervalRangeFacetsResponse() throws Exception {
     XMLResponseParser parser = new XMLResponseParser();
     try(SolrResourceLoader loader = new SolrResourceLoader(null, null)) {
@@ -323,30 +324,71 @@ public class QueryResponseTest extends LuceneTestCase {
 
       RangeFacet facet = qr.getFacetRanges().get(0);
       assertEquals("price", facet.getName());
-      assertEquals(3, facet.getIntervalSets().size());
+      assertEquals(3, facet.getIntervals().size());
 
       RangeFacet.Interval interval = (RangeFacet.Interval) facet;
-      assertEquals("[0,10]", interval.getCounts().get(0).getValue());
-      assertEquals("(10,100]", interval.getCounts().get(1).getValue());
-      assertEquals("(100,*]", interval.getCounts().get(2).getValue());
+      assertEquals("[0,10]", interval.getIntervals().get(0).getValue());
+      assertEquals("(10,100]", interval.getIntervals().get(1).getValue());
+      assertEquals("(100,*]", interval.getIntervals().get(2).getValue());
 
-      assertEquals(3, interval.getCounts().get(0).getCount());
-      assertEquals(4, interval.getCounts().get(1).getCount());
-      assertEquals(9, interval.getCounts().get(2).getCount());
+      assertEquals(3, interval.getIntervals().get(0).getCount());
+      assertEquals(4, interval.getIntervals().get(1).getCount());
+      assertEquals(9, interval.getIntervals().get(2).getCount());
 
       facet = qr.getFacetRanges().get(1);
       interval = (RangeFacet.Interval) facet;
       assertEquals("popularity", facet.getName());
-      assertEquals(3, facet.getIntervalSets().size());
+      assertEquals(3, facet.getIntervals().size());
 
-      assertEquals("bad", interval.getCounts().get(0).getValue());
-      assertEquals("average", interval.getCounts().get(1).getValue());
-      assertEquals("good", interval.getCounts().get(2).getValue());
+      assertEquals("bad", interval.getIntervals().get(0).getValue());
+      assertEquals("average", interval.getIntervals().get(1).getValue());
+      assertEquals("good", interval.getIntervals().get(2).getValue());
 
-      assertEquals(3, interval.getCounts().get(0).getCount());
-      assertEquals(10, interval.getCounts().get(1).getCount());
-      assertEquals(2, interval.getCounts().get(2).getCount());
+      assertEquals(3, interval.getIntervals().get(0).getCount());
+      assertEquals(10, interval.getIntervals().get(1).getCount());
+      assertEquals(2, interval.getIntervals().get(2).getCount());
 
+    }
+  }
+
+  @Test
+  public void testMultipleRangeFacetsResponse() throws Exception {
+    XMLResponseParser parser = new XMLResponseParser();
+    try(SolrResourceLoader loader = new SolrResourceLoader(null, null)) {
+      InputStream is = loader.openResource("solrj/sampleMultipleRangeFacetsResponse.xml");
+      assertNotNull(is);
+      Reader in = new InputStreamReader(is, StandardCharsets.UTF_8);
+      NamedList<Object> response = parser.processResponse(in);
+      in.close();
+
+      QueryResponse qr = new QueryResponse(response, null);
+      assertNotNull(qr);
+      assertNotNull(qr.getFacetRanges());
+      assertEquals(1, qr.getFacetRanges().size());
+
+      RangeFacet facet = qr.getFacetRanges().get(0);
+      assertEquals("price", facet.getName());
+      assertEquals(3, facet.getIntervals().size());
+      assertEquals(5, facet.getCounts().size());
+
+      RangeFacet.Numeric numericFacet = (RangeFacet.Numeric) facet;
+      assertEquals("[0,10]", numericFacet.getIntervals().get(0).getValue());
+      assertEquals("(10,100]", numericFacet.getIntervals().get(1).getValue());
+      assertEquals("(100,*]", numericFacet.getIntervals().get(2).getValue());
+      assertEquals(3, numericFacet.getIntervals().get(0).getCount());
+      assertEquals(4, numericFacet.getIntervals().get(1).getCount());
+      assertEquals(9, numericFacet.getIntervals().get(2).getCount());
+
+      assertEquals("0.0", numericFacet.getCounts().get(0).getValue());
+      assertEquals("50.0", numericFacet.getCounts().get(1).getValue());
+      assertEquals("100.0", numericFacet.getCounts().get(2).getValue());
+      assertEquals("150.0", numericFacet.getCounts().get(3).getValue());
+      assertEquals("200.0", numericFacet.getCounts().get(4).getValue());
+      assertEquals(3, numericFacet.getCounts().get(0).getCount());
+      assertEquals(1, numericFacet.getCounts().get(1).getCount());
+      assertEquals(0, numericFacet.getCounts().get(2).getCount());
+      assertEquals(0, numericFacet.getCounts().get(3).getCount());
+      assertEquals(0, numericFacet.getCounts().get(4).getCount());
     }
   }
 }

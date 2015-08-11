@@ -28,7 +28,6 @@ import org.apache.solr.common.SolrException;
 import org.apache.solr.common.params.FacetParams.FacetRangeMethod;
 import org.apache.solr.common.params.FacetParams.FacetRangeOther;
 import org.apache.solr.common.params.FacetParams;
-import org.apache.solr.common.params.GroupParams;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.common.util.SimpleOrderedMap;
@@ -107,14 +106,23 @@ public class RangeFacetProcessor extends SimpleFacets {
     final ParsedParams parsed = parseParams(FacetParams.FACET_RANGE, field);
     String[] intervalStrs = parsed.required.getFieldParams(parsed.facetValue, FacetParams.FACET_RANGE_SET);
     SchemaField schemaField = searcher.getCore().getLatestSchema().getField(parsed.facetValue);
-    NamedList<Object> counts = new SimpleOrderedMap<>();
+
     IntervalFacets intervalFacets = new IntervalFacets(schemaField, searcher, parsed.docs, intervalStrs, parsed.params);
     NamedList<Integer> result = new SimpleOrderedMap<>();
     for (FacetInterval interval : intervalFacets) {
       result.add(interval.getKey(), interval.getCount());
     }
-    counts.add("counts", result);
-    resOuter.add(rangeFacetRequest.getKey(), counts);
+
+    if (resOuter.get(rangeFacetRequest.getKey()) != null) {
+      // Add interval range facet to the same field if exists
+      final NamedList<Object> res = (NamedList<Object>) resOuter.get(rangeFacetRequest.getKey());
+      res.add("intervals", result);
+    }
+    else {
+      NamedList<Object> counts = new SimpleOrderedMap<>();
+      counts.add("intervals", result);
+      resOuter.add(rangeFacetRequest.getKey(), counts);
+    }
   }
 
   /**

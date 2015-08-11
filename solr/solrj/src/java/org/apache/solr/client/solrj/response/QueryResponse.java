@@ -407,18 +407,20 @@ public class QueryResponse extends SolrResponseBase
 
     for (Map.Entry<String, NamedList<Object>> facet : rf) {
       NamedList<Object> values = facet.getValue();
-      Object rawGap = values.get("gap");
 
-      RangeFacet rangeFacet;
-      if (rawGap == null) {
-        NamedList<Integer> intervals = (NamedList<Integer>) values.get("counts");
-        List<String> intervalSets = new ArrayList<String>();
-        for (Map.Entry<String, Integer> interval: intervals) {
+      // Get the sets of interval range facet
+      NamedList<Integer> intervals = (NamedList<Integer>) values.get("intervals");
+      List<String> intervalSets = null;
+      if (intervals != null) {
+        intervalSets = new ArrayList<String>();
+        for (Map.Entry<String,Integer> interval : intervals) {
           intervalSets.add(interval.getKey());
         }
-        rangeFacet = new RangeFacet.Interval(facet.getKey(), intervalSets);
       }
-      else if (rawGap instanceof Number) {
+
+      Object rawGap = values.get("gap");
+      RangeFacet rangeFacet = null;
+      if (rawGap instanceof Number) {
         Number gap = (Number) rawGap;
         Number start = (Number) values.get("start");
         Number end = (Number) values.get("end");
@@ -427,8 +429,8 @@ public class QueryResponse extends SolrResponseBase
         Number after = (Number) values.get("after");
         Number between = (Number) values.get("between");
 
-        rangeFacet = new RangeFacet.Numeric(facet.getKey(), start, end, gap, before, after, between);
-      } else {
+        rangeFacet = new RangeFacet.Numeric(facet.getKey(), start, end, gap, before, after, between, intervalSets);
+      } else if (rawGap != null) {
         String gap = (String) rawGap;
         Date start = (Date) values.get("start");
         Date end = (Date) values.get("end");
@@ -437,14 +439,23 @@ public class QueryResponse extends SolrResponseBase
         Number after = (Number) values.get("after");
         Number between = (Number) values.get("between");
 
-        rangeFacet = new RangeFacet.Date(facet.getKey(), start, end, gap, before, after, between);
+        rangeFacet = new RangeFacet.Date(facet.getKey(), start, end, gap, before, after, between, intervalSets);
+      } else if (intervals != null) {
+        // rangeFacet only contains interval range facet
+        rangeFacet = new RangeFacet.Interval(facet.getKey(), intervalSets);
       }
 
       NamedList<Integer> counts = (NamedList<Integer>) values.get("counts");
-      for (Map.Entry<String, Integer> entry : counts)   {
-        rangeFacet.addCount(entry.getKey(), entry.getValue());
+      if (counts != null) {
+        for (Map.Entry<String, Integer> entry : counts)   {
+          rangeFacet.addCount(entry.getKey(), entry.getValue());
+        }
       }
-
+      if (intervals != null) {
+        for (Map.Entry<String,Integer> entry : intervals) {
+          rangeFacet.addInterval(entry.getKey(), entry.getValue());
+        }
+      }
       facetRanges.add(rangeFacet);
     }
     return facetRanges;
