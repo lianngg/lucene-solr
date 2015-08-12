@@ -100,7 +100,7 @@ public class RangeFacetRequest extends FacetComponent.FacetBase {
       this.others = null;
       this.method = null;
       this.minCount = 0;
-      this.groupFacet = params.getBool(GroupParams.GROUP_FACET, false);
+      this.groupFacet = false;
       this.facetRanges = null;
       this.gapObj = null;
       this.startObj = null;

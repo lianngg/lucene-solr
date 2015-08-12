@@ -371,24 +371,24 @@ public class QueryResponseTest extends LuceneTestCase {
       assertEquals(3, facet.getIntervals().size());
       assertEquals(5, facet.getCounts().size());
 
-      RangeFacet.Numeric numericFacet = (RangeFacet.Numeric) facet;
-      assertEquals("[0,10]", numericFacet.getIntervals().get(0).getValue());
-      assertEquals("(10,100]", numericFacet.getIntervals().get(1).getValue());
-      assertEquals("(100,*]", numericFacet.getIntervals().get(2).getValue());
-      assertEquals(3, numericFacet.getIntervals().get(0).getCount());
-      assertEquals(4, numericFacet.getIntervals().get(1).getCount());
-      assertEquals(9, numericFacet.getIntervals().get(2).getCount());
+      RangeFacet.Numeric rangeFacet = (RangeFacet.Numeric) facet;
+      assertEquals("[0,10]", rangeFacet.getIntervals().get(0).getValue());
+      assertEquals("(10,100]", rangeFacet.getIntervals().get(1).getValue());
+      assertEquals("(100,*]", rangeFacet.getIntervals().get(2).getValue());
+      assertEquals(3, rangeFacet.getIntervals().get(0).getCount());
+      assertEquals(4, rangeFacet.getIntervals().get(1).getCount());
+      assertEquals(9, rangeFacet.getIntervals().get(2).getCount());
 
-      assertEquals("0.0", numericFacet.getCounts().get(0).getValue());
-      assertEquals("50.0", numericFacet.getCounts().get(1).getValue());
-      assertEquals("100.0", numericFacet.getCounts().get(2).getValue());
-      assertEquals("150.0", numericFacet.getCounts().get(3).getValue());
-      assertEquals("200.0", numericFacet.getCounts().get(4).getValue());
-      assertEquals(3, numericFacet.getCounts().get(0).getCount());
-      assertEquals(1, numericFacet.getCounts().get(1).getCount());
-      assertEquals(0, numericFacet.getCounts().get(2).getCount());
-      assertEquals(0, numericFacet.getCounts().get(3).getCount());
-      assertEquals(0, numericFacet.getCounts().get(4).getCount());
+      assertEquals("0.0", rangeFacet.getCounts().get(0).getValue());
+      assertEquals("50.0", rangeFacet.getCounts().get(1).getValue());
+      assertEquals("100.0", rangeFacet.getCounts().get(2).getValue());
+      assertEquals("150.0", rangeFacet.getCounts().get(3).getValue());
+      assertEquals("200.0", rangeFacet.getCounts().get(4).getValue());
+      assertEquals(3, rangeFacet.getCounts().get(0).getCount());
+      assertEquals(1, rangeFacet.getCounts().get(1).getCount());
+      assertEquals(0, rangeFacet.getCounts().get(2).getCount());
+      assertEquals(0, rangeFacet.getCounts().get(3).getCount());
+      assertEquals(0, rangeFacet.getCounts().get(4).getCount());
     }
   }
 }
