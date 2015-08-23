@@ -19,7 +19,6 @@ package org.apache.lucene.expressions.js;
 import java.io.IOException;
 import java.io.Reader;
 import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.nio.charset.StandardCharsets;
@@ -37,6 +36,7 @@ import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.apache.lucene.expressions.Expression;
+import org.apache.lucene.expressions.js.JavascriptParser.ExpressionContext;
 import org.apache.lucene.queries.function.FunctionValues;
 import org.apache.lucene.util.IOUtils;
 import org.objectweb.asm.ClassWriter;
@@ -44,8 +44,6 @@ import org.objectweb.asm.Label;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.commons.GeneratorAdapter;
-
-import static org.apache.lucene.expressions.js.JavascriptParser.ExpressionContext;
 
 /**
  * An expression compiler for javascript expressions.
@@ -74,7 +72,7 @@ import static org.apache.lucene.expressions.js.JavascriptParser.ExpressionContex
  * 
  * @lucene.experimental
  */
-public class JavascriptCompiler {
+public final class JavascriptCompiler {
   static final class Loader extends ClassLoader {
     Loader(ClassLoader parent) {
       super(parent);
@@ -85,7 +83,7 @@ public class JavascriptCompiler {
     }
   }
   
-  private static final int CLASSFILE_VERSION = Opcodes.V1_7;
+  private static final int CLASSFILE_VERSION = Opcodes.V1_8;
   
   // We use the same class name for all generated classes as they all have their own class loader.
   // The source code is displayed as "source file name" in stack trace.
@@ -111,10 +109,6 @@ public class JavascriptCompiler {
   private static final int MAX_SOURCE_LENGTH = 16384;
   
   final String sourceText;
-  final Map<String, Integer> externalsMap = new LinkedHashMap<>();
-  final ClassWriter classWriter = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
-  GeneratorAdapter gen;
-  
   final Map<String,Method> functions;
   
   /**
@@ -189,19 +183,18 @@ public class JavascriptCompiler {
    * @throws ParseException on failure to compile
    */
   private Expression compileExpression(ClassLoader parent) throws ParseException {
+    final Map<String, Integer> externalsMap = new LinkedHashMap<>();
+    final ClassWriter classWriter = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
+    
+    generateClass(getAntlrParseTree(), classWriter, externalsMap);
+    
     try {
-      ParseTree parseTree = getAntlrParseTree();
-
-      beginCompile();
-      internalCompile(parseTree);
-      endCompile();
-      
       final Class<? extends Expression> evaluatorClass = new Loader(parent)
         .define(COMPILED_EXPRESSION_CLASS, classWriter.toByteArray());
       final Constructor<? extends Expression> constructor = evaluatorClass.getConstructor(String.class, String[].class);
 
       return constructor.newInstance(sourceText, externalsMap.keySet().toArray(new String[externalsMap.size()]));
-    } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException exception) {
+    } catch (ReflectiveOperationException exception) {
       throw new IllegalStateException("An internal error occurred attempting to compile the expression (" + sourceText + ").", exception);
     }
   }
@@ -229,16 +222,19 @@ public class JavascriptCompiler {
     }
   }
 
-  private void beginCompile() {
+  /**
+   * Sends the bytecode of class file to {@link ClassWriter}.
+   */
+  private void generateClass(final ParseTree parseTree, final ClassWriter classWriter, final Map<String, Integer> externalsMap) {
     classWriter.visit(CLASSFILE_VERSION,
         Opcodes.ACC_PUBLIC | Opcodes.ACC_SUPER | Opcodes.ACC_FINAL | Opcodes.ACC_SYNTHETIC,
         COMPILED_EXPRESSION_INTERNAL,
         null, EXPRESSION_TYPE.getInternalName(), null);
-    String clippedSourceText = (sourceText.length() <= MAX_SOURCE_LENGTH) ?
+    final String clippedSourceText = (sourceText.length() <= MAX_SOURCE_LENGTH) ?
         sourceText : (sourceText.substring(0, MAX_SOURCE_LENGTH - 3) + "...");
     classWriter.visitSource(clippedSourceText, null);
     
-    GeneratorAdapter constructor = new GeneratorAdapter(Opcodes.ACC_PUBLIC | Opcodes.ACC_SYNTHETIC,
+    final GeneratorAdapter constructor = new GeneratorAdapter(Opcodes.ACC_PUBLIC | Opcodes.ACC_SYNTHETIC,
         EXPRESSION_CTOR, null, null, classWriter);
     constructor.loadThis();
     constructor.loadArgs();
@@ -246,19 +242,13 @@ public class JavascriptCompiler {
     constructor.returnValue();
     constructor.endMethod();
     
-    gen = new GeneratorAdapter(Opcodes.ACC_PUBLIC | Opcodes.ACC_SYNTHETIC,
+    final GeneratorAdapter gen = new GeneratorAdapter(Opcodes.ACC_PUBLIC | Opcodes.ACC_SYNTHETIC,
         EVALUATE_METHOD, null, null, classWriter);
-  }
 
-  // internalCompile is used to create an anonymous inner class around the ANTLR listener
-  // to completely hide the implementation details of expression compilation
-  private void internalCompile(ParseTree parseTree) {
+    // to completely hide the ANTLR visitor we use an anonymous impl:
     new JavascriptBaseVisitor<Void>() {
       private final Deque<Type> typeStack = new ArrayDeque<>();
 
-      /**
-       * For internal compiler use only, do NOT use
-       */
       @Override
       public Void visitCompile(JavascriptParser.CompileContext ctx) {
         typeStack.push(Type.DOUBLE_TYPE);
@@ -268,9 +258,6 @@ public class JavascriptCompiler {
         return null;
       }
 
-      /**
-       * For internal compiler use only, do NOT use
-       */
       @Override
       public Void visitPrecedence(JavascriptParser.PrecedenceContext ctx) {
         visit(ctx.expression());
@@ -278,9 +265,6 @@ public class JavascriptCompiler {
         return null;
       }
 
-      /**
-       * For internal compiler use only, do NOT use
-       */
       @Override
       public Void visitNumeric(JavascriptParser.NumericContext ctx) {
         if (ctx.HEX() != null) {
@@ -297,9 +281,6 @@ public class JavascriptCompiler {
         return null;
       }
 
-      /**
-       * For internal compiler use only, do NOT use
-       */
       @Override
       public Void visitExternal(JavascriptParser.ExternalContext ctx) {
         String text = ctx.VARIABLE().getText();
@@ -352,9 +333,6 @@ public class JavascriptCompiler {
         return null;
       }
 
-      /**
-       * For internal compiler use only, do NOT use
-       */
       @Override
       public Void visitUnary(JavascriptParser.UnaryContext ctx) {
         if (ctx.BOOLNOT() != null) {
@@ -396,9 +374,6 @@ public class JavascriptCompiler {
         return null;
       }
 
-      /**
-       * For internal compiler use only, do NOT use
-       */
       @Override
       public Void visitMuldiv(JavascriptParser.MuldivContext ctx) {
         int opcode;
@@ -418,9 +393,6 @@ public class JavascriptCompiler {
         return null;
       }
 
-      /**
-       * For internal compiler use only, do NOT use
-       */
       @Override
       public Void visitAddsub(JavascriptParser.AddsubContext ctx) {
         int opcode;
@@ -438,9 +410,6 @@ public class JavascriptCompiler {
         return null;
       }
 
-      /**
-       * For internal compiler use only, do NOT use
-       */
       @Override
       public Void visitBwshift(JavascriptParser.BwshiftContext ctx) {
         int opcode;
@@ -460,9 +429,6 @@ public class JavascriptCompiler {
         return null;
       }
 
-      /**
-       * For internal compiler use only, do NOT use
-       */
       @Override
       public Void visitBoolcomp(JavascriptParser.BoolcompContext ctx) {
         int opcode;
@@ -484,9 +450,6 @@ public class JavascriptCompiler {
         return null;
       }
 
-      /**
-       * For internal compiler use only, do NOT use
-       */
       @Override
       public Void visitBooleqne(JavascriptParser.BooleqneContext ctx) {
         int opcode;
@@ -504,9 +467,6 @@ public class JavascriptCompiler {
         return null;
       }
 
-      /**
-       * For internal compiler use only, do NOT use
-       */
       @Override
       public Void visitBwand(JavascriptParser.BwandContext ctx) {
         pushBitwise(Opcodes.LAND, ctx.expression(0), ctx.expression(1));
@@ -514,9 +474,6 @@ public class JavascriptCompiler {
         return null;
       }
 
-      /**
-       * For internal compiler use only, do NOT use
-       */
       @Override
       public Void visitBwxor(JavascriptParser.BwxorContext ctx) {
         pushBitwise(Opcodes.LXOR, ctx.expression(0), ctx.expression(1));
@@ -524,9 +481,6 @@ public class JavascriptCompiler {
         return null;
       }
 
-      /**
-       * For internal compiler use only, do NOT use
-       */
       @Override
       public Void visitBwor(JavascriptParser.BworContext ctx) {
         pushBitwise(Opcodes.LOR, ctx.expression(0), ctx.expression(1));
@@ -534,9 +488,6 @@ public class JavascriptCompiler {
         return null;
       }
 
-      /**
-       * For internal compiler use only, do NOT use
-       */
       @Override
       public Void visitBooland(JavascriptParser.BoolandContext ctx) {
         Label andFalse = new Label();
@@ -557,9 +508,6 @@ public class JavascriptCompiler {
         return null;
       }
 
-      /**
-       * For internal compiler use only, do NOT use
-       */
       @Override
       public Void visitBoolor(JavascriptParser.BoolorContext ctx) {
         Label orTrue = new Label();
@@ -580,9 +528,6 @@ public class JavascriptCompiler {
         return null;
       }
 
-      /**
-       * For internal compiler use only, do NOT use
-       */
       @Override
       public Void visitConditional(JavascriptParser.ConditionalContext ctx) {
         Label condFalse = new Label();
@@ -674,9 +619,7 @@ public class JavascriptCompiler {
         }
       }
     }.visit(parseTree);
-  }
-  
-  private void endCompile() {
+    
     gen.returnValue();
     gen.endMethod();
     

@@ -21,8 +21,8 @@ import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.CharsRefBuilder;
 import org.apache.solr.client.solrj.request.UpdateRequest;
 import org.apache.solr.cloud.CloudDescriptor;
-import org.apache.solr.cloud.DistributedQueue;
 import org.apache.solr.cloud.LeaderInitiatedRecoveryThread;
+import org.apache.solr.cloud.DistributedQueue;
 import org.apache.solr.cloud.Overseer;
 import org.apache.solr.cloud.ZkController;
 import org.apache.solr.cloud.overseer.OverseerAction;
@@ -524,8 +524,7 @@ public class DistributedUpdateProcessor extends UpdateRequestProcessor {
         if (routeKey != null) {
           RoutingRule rule = routingRules.get(routeKey + "!");
           if (rule != null) {
-            // TODO: look at using nanoTime
-            if (rule.getExpireAt() >= System.currentTimeMillis()) {
+            if (! rule.isExpired()) {
               List<DocRouter.Range> ranges = rule.getRouteRanges();
               if (ranges != null && !ranges.isEmpty()) {
                 int hash = compositeIdRouter.sliceHash(id, doc, null, coll);
@@ -1641,7 +1640,7 @@ public class DistributedUpdateProcessor extends UpdateRequestProcessor {
       if (ulog == null || ulog.getState() == UpdateLog.State.ACTIVE || (cmd.getFlags() & UpdateCommand.REPLAY) != 0) {
         super.processCommit(cmd);
       } else {
-        log.info("Ignoring commit while not ACTIVE - state: " + ulog.getState() + " replay:" + (cmd.getFlags() & UpdateCommand.REPLAY));
+        log.info("Ignoring commit while not ACTIVE - state: " + ulog.getState() + " replay: " + ((cmd.getFlags() & UpdateCommand.REPLAY) != 0));
       }
 
     } finally {

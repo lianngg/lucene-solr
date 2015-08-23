@@ -55,6 +55,11 @@ New Features
 
 * SOLR-3085: New edismax param mm.autoRelax which helps in certain cases of the stopwords/zero-hits issue (janhoy)
 
+* SOLR-7560: Parallel SQL Support (Joel Bernstein)
+
+* SOLR-7707: Add StreamExpression Support to RollupStream (Dennis Gove, Joel Bernstein)
+
+
 Other Changes
 ----------------------
 
@@ -70,7 +75,17 @@ Other Changes
 
 * SOLR-7624: Remove deprecated zkCredientialsProvider element in solrcloud section of solr.xml.
   (Xu Zhang, Per Steffensen, Ramkumar Aiyengar, Mark Miller)
-  
+
+* SOLR-7513: Add Equalitors to Streaming Expressions (Dennis Gove, Joel Bernstein)
+
+* SOLR-7528: Simplify Interfaces used in Streaming Expressions (Dennis Gove, Joel Bernstein)
+
+* SOLR-7554: Add checks in Streams for incoming stream order (Dennis Gove, Joel Bernstein)
+
+* SOLR-7441: Improve overall robustness of the Streaming stack: Streaming API,
+             Streaming Expressions, Parallel SQL (Joel Bernstein)
+
+
 ==================  5.4.0 ==================
 
 Consult the LUCENE_CHANGES.txt file for additional, low level, changes in this release
@@ -82,10 +97,14 @@ Carrot2 3.9.0
 Velocity 1.7 and Velocity Tools 2.0
 Apache UIMA 2.3.1
 Apache ZooKeeper 3.4.6
-Jetty 9.2.11.v20150529
+Jetty 9.2.13.v20150730
 
 Upgrading from Solr 5.3
 -----------------------
+
+* SOLR-7859: The following APIs are now deprecated:
+  - SolrCore.getStartTime: Use SolrCore.getStartTimeStamp instead.
+  - SolrIndexSearcher.getOpenTime: Use SolrIndexSearcher.getOpenTimeStamp instead.
 
 Detailed Change List
 ----------------------
@@ -104,6 +123,10 @@ New Features
   Example: description:HDTV OR filter(+promotion:tv +promotion_date:[NOW/DAY TO NOW/DAY+7DAY])
   (yonik)
 
+* SOLR-7775: Allow fromIndex parameter to ScoreJoinQParserPlugin {!join score=.. fromIndex=..}..
+   to refer to a single-sharded collection that has a replica on all nodes where there is a 
+   replica in the to index (Andrei Beliakov via Mikhail Khludnev)
+
 * SOLR-7795: Fold Interval Faceting into Range Faceting. Interval faceting becomes a part of
   range faceting family and could be deprecated in the future.
   (Hsuan-Tzu Liang via Tomás Fernández Löbbe)
@@ -111,8 +134,35 @@ New Features
 Bug Fixes
 ----------------------
 
+* SOLR-7859: Fix usage of currentTimeMillis instead of nanoTime in multiple places,
+  whitelist valid uses of currentTimeMillis (Ramkumar Aiyengar)
+
+* SOLR-7836: Possible deadlock when closing refcounted index writers.
+  (Jessica Cheng Mallet, Erick Erickson)
+
+* SOLR-7869: Overseer does not handle BadVersionException correctly and, in some cases,
+  can go into an infinite loop if cluster state in ZooKeeper is modified externally.
+  (Scott Blum, shalin)
+
+* SOLR-7920: Resolve XSS issue in Admin UI Schema Browser (David Chiu via Upayavira)
+
+* SOLR-7935: Fix very rare race condition that can cause an update to fail
+  via NullPointerException during a core reload. (yonik)
+
+* SOLR-7941: multivalued params are concatenated when using config API (noble)
+
+* SOLR-7949: Resolve XSS issue in Admin UI stats page (David Chiu via janhoy)
+
 Optimizations
 ----------------------
+
+* SOLR-7918: Filter (DocSet) production from term queries has been optimized and
+  is anywhere from 20% to over 100% faster and produces less garbage on average.
+  (yonik)
+
+* SOLR-6760: New optimized DistributedQueue implementation for overseer increases
+  message processing performance by ~470%.
+  (Noble Paul, Scott Blum, shalin)
 
 Other Changes
 ----------------------
@@ -122,6 +172,14 @@ Other Changes
 * SOLR-7870: Write a test which asserts that requests to stateFormat=2 collection succeed on a node
   even after all local replicas of that collection have been removed.
   (Scott Blum via shalin)
+
+* SOLR-7902: Split out use of child timers from RTimer to a sub-class
+  (Ramkumar Aiyengar)
+
+* SOLR-7943: Upgrade Jetty to 9.2.13.v20150730. (Bill Bell, shalin)
+
+* SOLR-7007: DistributedUpdateProcessor now logs replay flag as boolean instead of int
+  (Mike Drob via Christine Poerschke)
 
 ==================  5.3.0 ==================
 
@@ -348,8 +406,17 @@ Bug Fixes
 * SOLR-7866: VersionInfo caused an unhandled NPE when trying to determine the max value for the
   version field. (Timothy Potter)
 
-* SOLR-7666 (and linked tickets): Many fixes to AngularJS Admin UI bringing it close to feature 
+* SOLR-7666 (and linked tickets): Many fixes to AngularJS Admin UI bringing it close to feature
   parity with existing UI. (Upayavira)
+
+* SOLR-7908: SegmentsInfoRequestHandler gets a ref counted IndexWriter and does not properly release it.
+  (Mark Miller, shalin)
+
+* SOLR-7921: The techproducts example fails when running in a directory that contains spaces.
+  (Ishan Chattopadhyaya via Timothy Potter)
+
+* SOLR-7934: SolrCLI masks underlying cause of create collection failure. (Timothy Potter)
+
 
 Optimizations
 ----------------------
@@ -494,6 +561,9 @@ Other Changes
 
 * SOLR-7877: TestAuthenticationFramework.testBasics to preserve/restore the original request(Username|Password)
   (Christine Poerschke)
+
+* SOLR-7900: example/files improvements - added language detection and faceting, added title field, relocated .js files.
+  (Esther Quansah and Erik Hatcher)
 
 ==================  5.2.1 ==================
 
@@ -7490,7 +7560,7 @@ Bug Fixes
 
 * SOLR-2819: Improved speed of parsing hex entities in HTMLStripCharFilter
   (Bernhard Berger, hossman)
-	 	   
+
 * SOLR-2509: StringIndexOutOfBoundsException in the spellchecker collate when the term contains
   a hyphen. (Thomas Gambier caught the bug, Steffen Godskesen did the patch, via Erick Erickson)
 
@@ -8285,7 +8355,7 @@ Other Changes
   (Drew Farris, Robert Muir, Steve Rowe)
 
 * SOLR-2105: Rename RequestHandler param 'update.processor' to 'update.chain'.
-	(Jan Høydahl via Mark Miller)
+  (Jan Høydahl via Mark Miller)
 
 * SOLR-2485: Deprecate BaseResponseWriter, GenericBinaryResponseWriter, and 
   GenericTextResponseWriter.  These classes will be removed in 4.0.  (ryan)
@@ -8529,8 +8599,8 @@ New Features
    (Ankul Garg, Jason Rutherglen, Shalin Shekhar Mangar, Grant Ingersoll, Robert Muir, ab)
 
 * SOLR-1568: Added "native" filtering support for PointType, GeohashField.  Added LatLonType with filtering support too.  See
-  	     http://wiki.apache.org/solr/SpatialSearch and the example.  Refactored some items in Lucene spatial.
-	     Removed SpatialTileField as the underlying CartesianTier is broken beyond repair and is going to be moved. (gsingers)
+  http://wiki.apache.org/solr/SpatialSearch and the example.  Refactored some items in Lucene spatial.
+  Removed SpatialTileField as the underlying CartesianTier is broken beyond repair and is going to be moved. (gsingers)
 
 * SOLR-2128: Full parameter substitution for function queries.
   Example: q=add($v1,$v2)&v1=mul(popularity,5)&v2=20.0
@@ -9421,7 +9491,7 @@ New Features
 62. SOLR-1145: Add capability to specify an infoStream log file for the underlying Lucene IndexWriter in solrconfig.xml.
     This is an advanced debug log file that can be used to aid developers in fixing IndexWriter bugs. See the commented
     out example in the example solrconfig.xml under the indexDefaults section. 
-	  (Chris Harris, Mark Miller)
+    (Chris Harris, Mark Miller)
 
 63. SOLR-1256: Show the output of CharFilters in analysis.jsp. (koji)
 
@@ -10899,7 +10969,7 @@ Build
 
  2. SOLR-479: Added clover code coverage targets for committers and the nightly build.  Requires 
     the Clover library, as licensed to Apache and only available privately.  To run:
-   	     ant -Drun.clover=true clean clover test generate-clover-reports
+          ant -Drun.clover=true clean clover test generate-clover-reports
 
  3. SOLR-510: Nightly release includes client sources. (koji)
 
