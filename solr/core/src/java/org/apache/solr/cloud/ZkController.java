@@ -116,7 +116,8 @@ public final class ZkController {
   private final boolean SKIP_AUTO_RECOVERY = Boolean.getBoolean("solrcloud.skip.autorecovery");
 
   private final DistributedQueue overseerJobQueue;
-  private final OverseerCollectionQueue overseerCollectionQueue;
+  private final OverseerTaskQueue overseerCollectionQueue;
+  private final OverseerTaskQueue overseerConfigSetQueue;
 
   private final DistributedMap overseerRunningMap;
   private final DistributedMap overseerCompletedMap;
@@ -376,6 +377,7 @@ public final class ZkController {
 
     this.overseerJobQueue = Overseer.getInQueue(zkClient);
     this.overseerCollectionQueue = Overseer.getCollectionQueue(zkClient);
+    this.overseerConfigSetQueue = Overseer.getConfigSetQueue(zkClient);
     this.overseerRunningMap = Overseer.getRunningMap(zkClient);
     this.overseerCompletedMap = Overseer.getCompletedMap(zkClient);
     this.overseerFailureMap = Overseer.getFailureMap(zkClient);
@@ -633,8 +635,9 @@ public final class ZkController {
     cmdExecutor.ensureExists(ZkStateReader.LIVE_NODES_ZKNODE, zkClient);
     cmdExecutor.ensureExists(ZkStateReader.COLLECTIONS_ZKNODE, zkClient);
     cmdExecutor.ensureExists(ZkStateReader.ALIASES, zkClient);
-    cmdExecutor.ensureExists(ZkStateReader.CLUSTER_STATE, zkClient);
-    cmdExecutor.ensureExists(ZkStateReader.SOLR_SECURITY_CONF_PATH,"{}".getBytes(StandardCharsets.UTF_8),CreateMode.PERSISTENT, zkClient);
+    byte[] emptyJson = "{}".getBytes(StandardCharsets.UTF_8);
+    cmdExecutor.ensureExists(ZkStateReader.CLUSTER_STATE, emptyJson, CreateMode.PERSISTENT, zkClient);
+    cmdExecutor.ensureExists(ZkStateReader.SOLR_SECURITY_CONF_PATH, emptyJson, CreateMode.PERSISTENT, zkClient);
   }
 
   private void init(CurrentCoreDescriptorProvider registerOnReconnect) {
@@ -1767,8 +1770,12 @@ public final class ZkController {
     return overseerJobQueue;
   }
 
-  public OverseerCollectionQueue getOverseerCollectionQueue() {
+  public OverseerTaskQueue getOverseerCollectionQueue() {
     return overseerCollectionQueue;
+  }
+
+  public OverseerTaskQueue getOverseerConfigSetQueue() {
+    return overseerConfigSetQueue;
   }
 
   public DistributedMap getOverseerRunningMap() {

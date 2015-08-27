@@ -1,5 +1,3 @@
-package org.apache.solr.search.grouping.distributed.command;
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -17,26 +15,19 @@ package org.apache.solr.search.grouping.distributed.command;
  * limitations under the License.
  */
 
+package org.apache.solr.client.solrj.response;
+
+import org.apache.solr.common.util.NamedList;
+
 /**
- * A simple data structure to hold a pair of typed objects.
- *
- * @lucene.experimental
+ * No special handling at this time.
  */
-public class Pair<A, B> {
-
-  private final A a;
-  private final B b;
-
-  public Pair(A a, B b) {
-    this.a = a;
-    this.b = b;
+public class ConfigSetAdminResponse extends SolrResponseBase
+{
+  @SuppressWarnings("unchecked")
+  public NamedList<String> getErrorMessages()
+  {
+     return (NamedList<String>) getResponse().get( "exceptions" );
   }
 
-  public A getA() {
-    return a;
-  }
-
-  public B getB() {
-    return b;
-  }
 }
