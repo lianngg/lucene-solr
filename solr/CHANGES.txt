@@ -47,6 +47,12 @@ Upgrading from Solr 5.x
 * The deprecated zkCredientialsProvider element in solrcloud section of solr.xml
   is now removed. Use the correct spelling (zkCredentialsProvider) instead.
 
+* SOLR-7957: internal/expert - ResultContext was significantly changed and expanded
+  to allow for multiple full query results (DocLists) per Solr request.
+  TransformContext was rendered redundant and was removed. (yonik)
+
+
+
 Detailed Change List
 ----------------------
 
@@ -131,6 +137,8 @@ New Features
 
 * SOLR-7789: Introduce a ConfigSet management API (Gregory Chanan)
 
+* SOLR-4316: Add a collections dropdown to angular admin UI (Upayavira, Shalin Shekhar Mangar)
+
 * SOLR-7795: Fold Interval Faceting into Range Faceting. Interval faceting becomes a part of
   range faceting family and could be deprecated in the future.
   (Hsuan-Tzu Liang via Tomás Fernández Löbbe)
@@ -188,6 +196,8 @@ Optimizations
   equal to the string.length().
   (yonik, Steve Rowe, shalin)
 
+* SOLR-7983: Utils.toUTF8 uses larger buffer than necessary for holding UTF8 data. (shalin)
+
 Other Changes
 ----------------------
 
@@ -215,6 +225,15 @@ Other Changes
 
 * SOLR-7970: Factor out a SearchGroupsFieldCommandResult class.
   (Christine Poerschke)
+
+* SOLR-7942: Previously removed unlockOnStartup option (LUCENE-6508) now logs warning if configured,
+  will be an error in 6.0.  Also improved error msg if an index is locked on startup  (hossman)
+
+* SOLR-7979: Fix two typos (in a CoreAdminHandler log message and a TestCloudPivotFacet comment).
+  (Mike Drob via Christine Poerschke)
+
+* SOLR-7966: Solr Admin UI Solr now sets the HTTP header X-Frame-Options to DENY
+  to avoid clickjacking. (yonik)
 
 ==================  5.3.0 ==================
 

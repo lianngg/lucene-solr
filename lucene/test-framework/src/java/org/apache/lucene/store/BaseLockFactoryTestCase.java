@@ -17,16 +17,6 @@ package org.apache.lucene.store;
  * limitations under the License.
  */
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.PrintStream;
-import java.io.UnsupportedEncodingException;
-import java.nio.file.Path;
-import java.util.concurrent.CyclicBarrier;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.ReentrantLock;
-
 import org.apache.lucene.analysis.MockAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
@@ -39,8 +29,20 @@ import org.apache.lucene.index.Term;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TermQuery;
+import org.apache.lucene.util.Constants;
 import org.apache.lucene.util.LuceneTestCase;
 import org.apache.lucene.util.PrintStreamInfoStream;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.io.UnsupportedEncodingException;
+import java.nio.file.AccessDeniedException;
+import java.nio.file.Path;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
 
 /** Base class for per-LockFactory tests. */
 public abstract class BaseLockFactoryTestCase extends LuceneTestCase {
@@ -228,29 +230,36 @@ public abstract class BaseLockFactoryTestCase extends LuceneTestCase {
           // obtains, across IndexReader &
           // IndexWriters should be "fair" (ie
           // FIFO).
-        } catch (Exception e) {
-          hitException = true;
-          System.out.println("Stress Test Index Writer: creation hit unexpected exception: " + e.toString());
-          e.printStackTrace(System.out);
-          System.out.println(toString(baos));
+        } catch (Throwable t) {
+          if (Constants.WINDOWS && t instanceof AccessDeniedException) {
+            // LUCENE-6684: suppress this: on Windows, a file in the curious "pending delete" state can
+            // cause this exc on IW init, where one thread/process deleted an old
+            // segments_N, but the delete hasn't finished yet because other threads/processes
+            // still have it open
+          } else {
+            hitException = true;
+            System.out.println("Stress Test Index Writer: creation hit unexpected exception: " + t.toString());
+            t.printStackTrace(System.out);
+            System.out.println(toString(baos));
+          }
           break;
         }
         if (writer != null) {
           try {
             addDoc(writer);
-          } catch (IOException e) {
+          } catch (Throwable t) {
             hitException = true;
-            System.out.println("Stress Test Index Writer: addDoc hit unexpected exception: " + e.toString());
-            e.printStackTrace(System.out);
+            System.out.println("Stress Test Index Writer: addDoc hit unexpected exception: " + t.toString());
+            t.printStackTrace(System.out);
             System.out.println(toString(baos));
             break;
           }
           try {
             writer.close();
-          } catch (IOException e) {
+          } catch (Throwable t) {
             hitException = true;
-            System.out.println("Stress Test Index Writer: close hit unexpected exception: " + e.toString());
-            e.printStackTrace(System.out);
+            System.out.println("Stress Test Index Writer: close hit unexpected exception: " + t.toString());
+            t.printStackTrace(System.out);
             System.out.println(toString(baos));
             break;
           }
