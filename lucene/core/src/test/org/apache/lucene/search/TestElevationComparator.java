@@ -23,7 +23,7 @@ import org.apache.lucene.document.Field;
 import org.apache.lucene.document.SortedDocValuesField;
 import org.apache.lucene.index.*;
 import org.apache.lucene.search.FieldValueHitQueue.Entry;
-import org.apache.lucene.search.similarities.DefaultSimilarity;
+import org.apache.lucene.search.similarities.ClassicSimilarity;
 import org.apache.lucene.store.*;
 import org.apache.lucene.util.LuceneTestCase;
 import org.apache.lucene.util.BytesRef;
@@ -44,7 +44,7 @@ public class TestElevationComparator extends LuceneTestCase {
         newIndexWriterConfig(new MockAnalyzer(random())).
             setMaxBufferedDocs(2).
             setMergePolicy(newLogMergePolicy(1000)).
-            setSimilarity(new DefaultSimilarity())
+            setSimilarity(new ClassicSimilarity())
     );
     writer.addDocument(adoc(new String[] {"id", "a", "title", "ipod", "str_s", "a"}));
     writer.addDocument(adoc(new String[] {"id", "b", "title", "ipod ipod", "str_s", "b"}));
@@ -57,7 +57,7 @@ public class TestElevationComparator extends LuceneTestCase {
     writer.close();
 
     IndexSearcher searcher = newSearcher(r);
-    searcher.setSimilarity(new DefaultSimilarity());
+    searcher.setSimilarity(new ClassicSimilarity());
 
     runTest(searcher, true);
     runTest(searcher, false);
@@ -121,8 +121,7 @@ public class TestElevationComparator extends LuceneTestCase {
      // System.out.println(" pri doc=" + vals[i+1] + " pri=" + (1+max));
    }
    BooleanQuery q = b.build();
-   q.setBoost(0);
-   return q;
+   return new BoostQuery(q, 0f);
  }
 
  private Document adoc(String[] vals) {

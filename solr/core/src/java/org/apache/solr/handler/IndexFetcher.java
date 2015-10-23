@@ -161,9 +161,9 @@ public class IndexFetcher {
 
   private volatile boolean stop = false;
 
-  private boolean useInternal = false;
+  private boolean useInternalCompression = false;
 
-  private boolean useExternal = false;
+  private boolean useExternalCompression = false;
 
   private final HttpClient myHttpClient;
 
@@ -192,13 +192,13 @@ public class IndexFetcher {
 
     this.replicationHandler = handler;
     String compress = (String) initArgs.get(COMPRESSION);
-    useInternal = INTERNAL.equals(compress);
-    useExternal = EXTERNAL.equals(compress);
+    useInternalCompression = INTERNAL.equals(compress);
+    useExternalCompression = EXTERNAL.equals(compress);
     String connTimeout = (String) initArgs.get(HttpClientUtil.PROP_CONNECTION_TIMEOUT);
     String readTimeout = (String) initArgs.get(HttpClientUtil.PROP_SO_TIMEOUT);
     String httpBasicAuthUser = (String) initArgs.get(HttpClientUtil.PROP_BASIC_AUTH_USER);
     String httpBasicAuthPassword = (String) initArgs.get(HttpClientUtil.PROP_BASIC_AUTH_PASS);
-    myHttpClient = createHttpClient(solrCore, connTimeout, readTimeout, httpBasicAuthUser, httpBasicAuthPassword, useExternal);
+    myHttpClient = createHttpClient(solrCore, connTimeout, readTimeout, httpBasicAuthUser, httpBasicAuthPassword, useExternalCompression);
   }
 
   /**
@@ -553,8 +553,7 @@ public class IndexFetcher {
       markReplicationStop();
       dirFileFetcher = null;
       localFileFetcher = null;
-      if (fsyncService != null && !fsyncService.isShutdown()) fsyncService
-          .shutdownNow();
+      if (fsyncService != null && !fsyncService.isShutdown()) fsyncService.shutdown();
       fsyncService = null;
       stop = false;
       fsyncException = null;
@@ -969,8 +968,11 @@ public class IndexFetcher {
     boolean success = false;
     try {
       if (slowFileExists(indexDir, fname)) {
-        LOG.info("Skipping move file - it already exists:" + fname);
-        return true;
+        LOG.warn("Cannot complete replication attempt because file already exists:" + fname);
+        
+        // we fail - we downloaded the files we need, if we can't move one in, we can't
+        // count on the correct index
+        return false;
       }
     } catch (IOException e) {
       SolrException.log(LOG, "could not check if a file exists", e);
@@ -1504,7 +1506,7 @@ public class IndexFetcher {
       params.set(CommonParams.QT, "/replication");
       //add the version to download. This is used to reserve the download
       params.set(solrParamOutput, fileName);
-      if (useInternal) {
+      if (useInternalCompression) {
         params.set(COMPRESSION, "true");
       }
       //use checksum
@@ -1530,7 +1532,7 @@ public class IndexFetcher {
         QueryRequest req = new QueryRequest(params);
         response = client.request(req);
         is = (InputStream) response.get("stream");
-        if(useInternal) {
+        if(useInternalCompression) {
           is = new InflaterInputStream(is);
         }
         return new FastInputStream(is);

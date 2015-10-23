@@ -34,7 +34,7 @@ import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriterConfig.OpenMode;
 import org.apache.lucene.index.RandomIndexWriter;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.search.similarities.DefaultSimilarity;
+import org.apache.lucene.search.similarities.ClassicSimilarity;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.util.LuceneTestCase;
 import org.apache.lucene.util.TestUtil;
@@ -306,7 +306,7 @@ public class TestPhraseQuery extends LuceneTestCase {
     RandomIndexWriter writer = new RandomIndexWriter(random(), directory, 
         newIndexWriterConfig(new MockAnalyzer(random()))
           .setMergePolicy(newLogMergePolicy())
-          .setSimilarity(new DefaultSimilarity()));
+          .setSimilarity(new ClassicSimilarity()));
 
     Document doc = new Document();
     doc.add(newTextField("field", "foo firstname lastname foo", Field.Store.YES));
@@ -324,17 +324,17 @@ public class TestPhraseQuery extends LuceneTestCase {
     writer.close();
 
     IndexSearcher searcher = newSearcher(reader);
-    searcher.setSimilarity(new DefaultSimilarity());
+    searcher.setSimilarity(new ClassicSimilarity());
     PhraseQuery query = new PhraseQuery(Integer.MAX_VALUE, "field", "firstname", "lastname");
     ScoreDoc[] hits = searcher.search(query, 1000).scoreDocs;
     assertEquals(3, hits.length);
     // Make sure that those matches where the terms appear closer to
     // each other get a higher score:
-    assertEquals(0.71, hits[0].score, 0.01);
+    assertEquals(1.0, hits[0].score, 0.01);
     assertEquals(0, hits[0].doc);
-    assertEquals(0.44, hits[1].score, 0.01);
+    assertEquals(0.62, hits[1].score, 0.01);
     assertEquals(1, hits[1].doc);
-    assertEquals(0.31, hits[2].score, 0.01);
+    assertEquals(0.43, hits[2].score, 0.01);
     assertEquals(2, hits[2].doc);
     QueryUtils.check(random(), query,searcher);
     reader.close();
@@ -372,9 +372,6 @@ public class TestPhraseQuery extends LuceneTestCase {
     builder.setSlop(5);
     q = builder.build();
     assertEquals("field:\"? hi|hello ? ? ? test\"~5", q.toString());
-
-    q.setBoost(2);
-    assertEquals("field:\"? hi|hello ? ? ? test\"~5^2.0", q.toString());
   }
 
   public void testWrappedPhrase() throws IOException {

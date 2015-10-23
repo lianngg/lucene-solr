@@ -29,9 +29,10 @@ import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
+import org.apache.lucene.search.BoostQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TermQuery;
-import org.apache.lucene.search.similarities.DefaultSimilarity;
+import org.apache.lucene.search.similarities.ClassicSimilarity;
 import org.apache.lucene.search.similarities.TFIDFSimilarity;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.CharsRefBuilder;
@@ -312,7 +313,7 @@ public final class MoreLikeThis {
    * Constructor requiring an IndexReader.
    */
   public MoreLikeThis(IndexReader ir) {
-    this(ir, new DefaultSimilarity());
+    this(ir, new ClassicSimilarity());
   }
 
   public MoreLikeThis(IndexReader ir, TFIDFSimilarity sim) {
@@ -618,14 +619,14 @@ public final class MoreLikeThis {
     float bestScore = -1;
 
     while ((scoreTerm = q.pop()) != null) {
-      TermQuery tq = new TermQuery(new Term(scoreTerm.topField, scoreTerm.word));
+      Query tq = new TermQuery(new Term(scoreTerm.topField, scoreTerm.word));
 
       if (boost) {
         if (bestScore == -1) {
           bestScore = (scoreTerm.score);
         }
         float myScore = (scoreTerm.score);
-        tq.setBoost(boostFactor * myScore / bestScore);
+        tq = new BoostQuery(tq, boostFactor * myScore / bestScore);
       }
 
       try {

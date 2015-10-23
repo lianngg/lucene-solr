@@ -33,6 +33,7 @@ solrAdminApp.controller('SchemaBrowserController',
                     var search = $location.search();
                     leftbar = {};
                     $scope.isField = $scope.isDynamicField = $scope.isType = false;
+                    $scope.showing = true;
                     if (search.field) {
                         $scope.selectedType = "Field";
                         $scope.is.field = true;
@@ -59,6 +60,8 @@ solrAdminApp.controller('SchemaBrowserController',
                         leftbar.fields = filterFields("fields", data, $scope.name);
                         leftbar.dynamicFields = filterFields("dynamic_fields", data, $scope.name);
                         $scope.fieldOrType = "type=" + $scope.name;
+                    } else {
+                        $scope.showing = false;
                     }
                     $scope.leftbar = leftbar;
                     $scope.core = $routeParams.core;
@@ -125,25 +128,28 @@ solrAdminApp.controller('SchemaBrowserController',
 
 var getFieldsAndTypes = function(data) {
     var fieldsAndTypes = [];
-    for (var field in data.fields) {
+    var fields = Object.keys(data.fields).sort();
+    for (var i in fields) {
         fieldsAndTypes.push({
             group: "Fields",
-            value: "field=" + field,
-            label: field
+            value: "field=" + fields[i],
+            label: fields[i]
         });
     }
-    for (var field in data.dynamic_fields) {
+    var dynamic_fields = Object.keys(data.dynamic_fields).sort();
+    for (var i in dynamic_fields) {
         fieldsAndTypes.push({
             group: "Dynamic Fields",
-            value: "dynamic-field=" + field,
-            label: field
+            value: "dynamic-field=" + dynamic_fields[i],
+            label: dynamic_fields[i]
         });
     }
-    for (var type in data.types) {
+    var types = Object.keys(data.types).sort();
+    for (var i in types) {
         fieldsAndTypes.push({
             group: "Types",
-            value: "type=" + type,
-            label: type
+            value: "type=" + types[i],
+            label: types[i]
         });
     }
     return fieldsAndTypes;

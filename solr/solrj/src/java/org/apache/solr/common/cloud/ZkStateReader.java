@@ -374,6 +374,7 @@ public class ZkStateReader implements Closeable {
           securityNodeListener.run();
         }
       });
+      securityData = getSecurityProps(true);
     }
   }
 
@@ -643,7 +644,7 @@ public class ZkStateReader implements Closeable {
   public static String getShardLeadersPath(String collection, String shardId) {
     return COLLECTIONS_ZKNODE + "/" + collection + "/"
         + SHARD_LEADERS_ZKNODE + (shardId != null ? ("/" + shardId)
-        : "");
+        : "") + "/leader";
   }
 
   /**

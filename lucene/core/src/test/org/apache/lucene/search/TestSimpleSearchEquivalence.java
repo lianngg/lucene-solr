@@ -202,4 +202,43 @@ public class TestSimpleSearchEquivalence extends SearchEquivalenceTestBase {
     PhraseQuery q2 = builder.build();
     assertSameScores(q1, q2);
   }
+
+  public void testBoostQuerySimplification() throws Exception {
+    float b1 = random().nextFloat() * 10;
+    float b2 = random().nextFloat() * 10;
+    Term term = randomTerm();
+
+    Query q1 = new BoostQuery(new BoostQuery(new TermQuery(term), b2), b1);
+    // Use AssertingQuery to prevent BoostQuery from merging inner and outer boosts
+    Query q2 = new BoostQuery(new AssertingQuery(random(), new BoostQuery(new TermQuery(term), b2)), b1);
+
+    assertSameScores(q1, q2);
+  }
+
+  public void testBooleanBoostPropagation() throws Exception {
+    float boost1 = random().nextFloat();
+    Query tq = new BoostQuery(new TermQuery(randomTerm()), boost1);
+
+    float boost2 = random().nextFloat();
+    // Applying boost2 over the term or boolean query should have the same effect
+    Query q1 = new BoostQuery(tq, boost2);
+    Query q2 = new BooleanQuery.Builder()
+      .add(tq, Occur.MUST)
+      .add(tq, Occur.FILTER)
+      .build();
+    q2 = new BoostQuery(q2, boost2);
+
+    assertSameScores(q1, q2);
+  }
+  
+  public void testBooleanOrVsSynonym() throws Exception {
+    Term t1 = randomTerm();
+    Term t2 = randomTerm();
+    assertEquals(t1.field(), t2.field());
+    SynonymQuery q1 = new SynonymQuery(t1, t2);
+    BooleanQuery.Builder q2 = new BooleanQuery.Builder();
+    q2.add(new TermQuery(t1), Occur.SHOULD);
+    q2.add(new TermQuery(t2), Occur.SHOULD);
+    assertSameSet(q1, q2.build());
+  }
 }

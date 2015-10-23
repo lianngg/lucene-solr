@@ -29,6 +29,7 @@ import org.apache.lucene.index.Term;
 import org.apache.lucene.search.AutomatonQuery;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
+import org.apache.lucene.search.BoostQuery;
 import org.apache.lucene.search.ConstantScoreQuery;
 import org.apache.lucene.search.FuzzyQuery;
 import org.apache.lucene.search.MatchAllDocsQuery;
@@ -151,7 +152,7 @@ public abstract class SolrQueryParserBase extends QueryBuilder {
     try {
       // TopLevelQuery is a Query followed by the end-of-input (EOF)
       Query res = TopLevelQuery(null);  // pass null so we can tell later if an explicit field was provided or not
-      return res!=null ? res : newBooleanQuery(false).build();
+      return res!=null ? res : newBooleanQuery().build();
     }
     catch (ParseException | TokenMgrError tme) {
       throw new SyntaxError("Cannot parse '" +query+ "': " + tme.getMessage(), tme);
@@ -398,7 +399,6 @@ public abstract class SolrQueryParserBase extends QueryBuilder {
         }
         builder.setSlop(slop);
         query = builder.build();
-        query.setBoost(pq.getBoost());
       }
       if (query instanceof MultiPhraseQuery) {
         ((MultiPhraseQuery) query).setSlop(slop);
@@ -488,30 +488,12 @@ public abstract class SolrQueryParserBase extends QueryBuilder {
    *
    * @return Resulting {@link org.apache.lucene.search.Query} object.
    */
-  protected Query getBooleanQuery(List<BooleanClause> clauses) throws SyntaxError {
-    return getBooleanQuery(clauses, false);
-  }
-
-  /**
-   * Factory method for generating query, given a set of clauses.
-   * By default creates a boolean query composed of clauses passed in.
-   *
-   * Can be overridden by extending classes, to modify query being
-   * returned.
-   *
-   * @param clauses List that contains {@link org.apache.lucene.search.BooleanClause} instances
-   *    to join.
-   * @param disableCoord true if coord scoring should be disabled.
-   *
-   * @return Resulting {@link org.apache.lucene.search.Query} object.
-   */
-  protected Query getBooleanQuery(List<BooleanClause> clauses, boolean disableCoord)
-    throws SyntaxError
+  protected Query getBooleanQuery(List<BooleanClause> clauses) throws SyntaxError
   {
     if (clauses.size()==0) {
       return null; // all clause words were filtered away by the analyzer.
     }
-    BooleanQuery.Builder query = newBooleanQuery(disableCoord);
+    BooleanQuery.Builder query = newBooleanQuery();
     for(final BooleanClause clause: clauses) {
       query.add(clause);
     }
@@ -572,19 +554,17 @@ public abstract class SolrQueryParserBase extends QueryBuilder {
       // syntax looks like foo:x^=3
       float val = Float.parseFloat(boost.image.substring(1));
       Query newQ = q;
-      if (q instanceof FilterQuery || q instanceof ConstantScoreQuery || q instanceof SolrConstantScoreQuery) {
-        newQ.setBoost(val);
+      if (q instanceof ConstantScoreQuery || q instanceof SolrConstantScoreQuery) {
+        // skip
       } else {
         newQ = new ConstantScoreQuery(q);
-        newQ.setBoost(val);
       }
-      return newQ;
+      return new BoostQuery(newQ, val);
     }
 
     float boostVal = Float.parseFloat(boost.image);
-    q.setBoost(q.getBoost() * boostVal);
 
-    return q;
+    return new BoostQuery(q, boostVal);
   }
 
 
@@ -821,7 +801,6 @@ public abstract class SolrQueryParserBase extends QueryBuilder {
             buffer.append(":");
           }
           buffer.append(term.text());
-          buffer.append(ToStringUtils.boost(getBoost()));
           return buffer.toString();
         }
       };

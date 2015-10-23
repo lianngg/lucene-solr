@@ -32,8 +32,8 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map.Entry;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -57,10 +57,10 @@ import org.apache.lucene.store.IOContext;
 import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.store.Lock;
 import org.apache.lucene.store.LockObtainFailedException;
+import org.apache.lucene.store.LockValidatingDirectoryWrapper;
 import org.apache.lucene.store.MergeInfo;
 import org.apache.lucene.store.RateLimitedIndexOutput;
 import org.apache.lucene.store.TrackingDirectoryWrapper;
-import org.apache.lucene.store.LockValidatingDirectoryWrapper;
 import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
@@ -2014,15 +2014,19 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
     
     // Ensure that only one thread actually gets to do the
     // closing, and make sure no commit is also in progress:
-    synchronized(commitLock) {
-      if (shouldClose(true)) {
-        rollbackInternal();
-      }
+    if (shouldClose(true)) {
+      rollbackInternal();
     }
   }
 
   private void rollbackInternal() throws IOException {
+    // Make sure no commit is running, else e.g. we can close while another thread is still fsync'ing:
+    synchronized(commitLock) {
+      rollbackInternalNoCommit();
+    }
+  }
 
+  private void rollbackInternalNoCommit() throws IOException {
     boolean success = false;
 
     if (infoStream.isEnabled("IW")) {
@@ -2606,22 +2610,12 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
         return;
       }
 
-      boolean success = false;
-      try {
-        merger.merge();                // merge 'em
-        success = true;
-      } finally {
-        if (!success) { 
-          synchronized(this) {
-            deleter.refresh(info.name);
-          }
-        }
-      }
+      merger.merge();                // merge 'em
 
       SegmentCommitInfo infoPerCommit = new SegmentCommitInfo(info, 0, -1L, -1L, -1L);
 
       info.setFiles(new HashSet<>(trackingDir.getCreatedFiles()));
-      trackingDir.getCreatedFiles().clear();
+      trackingDir.clearCreatedFiles();
                                          
       setDiagnostics(info, SOURCE_ADDINDEXES_READERS);
 
@@ -2657,17 +2651,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
       // creating CFS so that 1) .si isn't slurped into CFS,
       // and 2) .si reflects useCompoundFile=true change
       // above:
-      success = false;
-      try {
-        codec.segmentInfoFormat().write(trackingDir, info, context);
-        success = true;
-      } finally {
-        if (!success) {
-          synchronized(this) {
-            deleter.refresh(info.name);
-          }
-        }
-      }
+      codec.segmentInfoFormat().write(trackingDir, info, context);
 
       info.addFiles(trackingDir.getCreatedFiles());
 
@@ -3662,9 +3646,6 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
             if (infoStream.isEnabled("IW")) {
               infoStream.message("IW", "hit exception during merge");
             }
-            if (merge.info != null && !segmentInfos.contains(merge.info)) {
-              deleter.refresh(merge.info.info.name);
-            }
           } else if (merge.rateLimiter.getAbort() == false && (merge.maxNumSegments != -1 || (!closed && !closing))) {
             // This merge (and, generally, any change to the
             // segments) may now enable new merges, so we call
@@ -4069,19 +4050,10 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
       merge.mergeStartNS = System.nanoTime();
 
       // This is where all the work happens:
-      boolean success3 = false;
-      try {
-        if (merger.shouldMerge()) {
-          merger.merge();
-        }
-        success3 = true;
-      } finally {
-        if (!success3) {
-          synchronized(this) {  
-            deleter.refresh(merge.info.info.name);
-          }
-        }
+      if (merger.shouldMerge()) {
+        merger.merge();
       }
+
       MergeState mergeState = merger.mergeState;
       assert mergeState.segmentInfo == merge.info.info;
       merge.info.info.setFiles(new HashSet<>(dirWrapper.getCreatedFiles()));
@@ -4688,10 +4660,19 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
   
   /**
    * Cleans up residuals from a segment that could not be entirely flushed due to an error
-   * @see IndexFileDeleter#refresh(String) 
    */
   synchronized final void flushFailed(SegmentInfo info) throws IOException {
-    deleter.refresh(info.name);
+    // TODO: this really should be a tragic
+    Collection<String> files;
+    try {
+      files = info.files();
+    } catch (IllegalStateException ise) {
+      // OK
+      files = null;
+    }
+    if (files != null) {
+      deleter.deleteNewFiles(files);
+    }
   }
   
   final int purge(boolean forced) throws IOException {

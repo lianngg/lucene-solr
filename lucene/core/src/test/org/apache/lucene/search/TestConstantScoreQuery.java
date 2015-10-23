@@ -26,14 +26,12 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.MultiReader;
 import org.apache.lucene.index.RandomIndexWriter;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.BooleanClause.Occur;
-import org.apache.lucene.search.similarities.DefaultSimilarity;
+import org.apache.lucene.search.similarities.ClassicSimilarity;
 import org.apache.lucene.store.Directory;
-import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.LuceneTestCase;
 
@@ -103,24 +101,21 @@ public class TestConstantScoreQuery extends LuceneTestCase {
       searcher.setQueryCache(null); // to assert on scorer impl
       
       // set a similarity that does not normalize our boost away
-      searcher.setSimilarity(new DefaultSimilarity() {
+      searcher.setSimilarity(new ClassicSimilarity() {
         @Override
         public float queryNorm(float sumOfSquaredWeights) {
           return 1.0f;
         }
       });
       
-      final Query csq1 = new ConstantScoreQuery(new TermQuery(new Term ("field", "term")));
-      csq1.setBoost(2.0f);
-      final Query csq2 = new ConstantScoreQuery(csq1);
-      csq2.setBoost(5.0f);
+      final BoostQuery csq1 = new BoostQuery(new ConstantScoreQuery(new TermQuery(new Term ("field", "term"))), 2f);
+      final BoostQuery csq2 = new BoostQuery(new ConstantScoreQuery(csq1), 5f);
       
       final BooleanQuery.Builder bq = new BooleanQuery.Builder();
       bq.add(csq1, BooleanClause.Occur.SHOULD);
       bq.add(csq2, BooleanClause.Occur.SHOULD);
       
-      final Query csqbq = new ConstantScoreQuery(bq.build());
-      csqbq.setBoost(17.0f);
+      final BoostQuery csqbq = new BoostQuery(new ConstantScoreQuery(bq.build()), 17f);
       
       checkHits(searcher, csq1, csq1.getBoost(), TermScorer.class);
       checkHits(searcher, csq2, csq2.getBoost(), TermScorer.class);
@@ -133,31 +128,32 @@ public class TestConstantScoreQuery extends LuceneTestCase {
     }
   }
 
-  // a filter for which other queries don't have special rewrite rules
-  private static class FilterWrapper extends Filter {
+  // a query for which other queries don't have special rewrite rules
+  private static class QueryWrapper extends Query {
 
-    private final Filter in;
-    
-    FilterWrapper(Filter in) {
+    private final Query in;
+
+    QueryWrapper(Query in) {
       this.in = in;
-    }
-    
-    @Override
-    public DocIdSet getDocIdSet(LeafReaderContext context, Bits acceptDocs) throws IOException {
-      return in.getDocIdSet(context, acceptDocs);
     }
 
     @Override
     public String toString(String field) {
-      return in.toString(field);
+      return "MockQuery";
     }
     
+    @Override
+    public Weight createWeight(IndexSearcher searcher, boolean needsScores) throws IOException {
+      return in.createWeight(searcher, needsScores);
+    }
+
     @Override
     public boolean equals(Object obj) {
       if (super.equals(obj) == false) {
         return false;
       }
-      return in.equals(((FilterWrapper) obj).in);
+      QueryWrapper that = (QueryWrapper) obj;
+      return in.equals(that.in);
     }
 
     @Override
@@ -178,7 +174,7 @@ public class TestConstantScoreQuery extends LuceneTestCase {
     IndexReader r = w.getReader();
     w.close();
 
-    Filter filterB = new FilterWrapper(new QueryWrapperFilter(new TermQuery(new Term("field", "b"))));
+    Query filterB = new QueryWrapper(new TermQuery(new Term("field", "b")));
     Query query = new ConstantScoreQuery(filterB);
 
     IndexSearcher s = newSearcher(r);
@@ -188,7 +184,7 @@ public class TestConstantScoreQuery extends LuceneTestCase {
         .build();
     assertEquals(1, s.search(filtered, 1).totalHits); // Query for field:b, Filter field:b
 
-    Filter filterA = new FilterWrapper(new QueryWrapperFilter(new TermQuery(new Term("field", "a"))));
+    Query filterA = new QueryWrapper(new TermQuery(new Term("field", "a")));
     query = new ConstantScoreQuery(filterA);
 
     filtered = new BooleanQuery.Builder()
@@ -197,32 +193,6 @@ public class TestConstantScoreQuery extends LuceneTestCase {
         .build();
     assertEquals(0, s.search(filtered, 1).totalHits); // Query field:b, Filter field:a
 
-    r.close();
-    d.close();
-  }
-
-  // LUCENE-5307
-  // don't reuse the scorer of filters since they have been created with bulkScorer=false
-  public void testQueryWrapperFilter() throws IOException {
-    Directory d = newDirectory();
-    RandomIndexWriter w = new RandomIndexWriter(random(), d);
-    Document doc = new Document();
-    doc.add(newStringField("field", "a", Field.Store.NO));
-    w.addDocument(doc);
-    IndexReader r = w.getReader();
-    w.close();
-
-    Filter filter = new QueryWrapperFilter(AssertingQuery.wrap(random(), new TermQuery(new Term("field", "a"))));
-    IndexSearcher s = newSearcher(r);
-    assert s instanceof AssertingIndexSearcher;
-    // this used to fail
-    s.search(new ConstantScoreQuery(filter), new TotalHitCountCollector());
-    
-    // check the rewrite
-    Query rewritten = new ConstantScoreQuery(filter).rewrite(r);
-    assertTrue(rewritten instanceof ConstantScoreQuery);
-    assertTrue(((ConstantScoreQuery) rewritten).getQuery() instanceof AssertingQuery);
-    
     r.close();
     d.close();
   }

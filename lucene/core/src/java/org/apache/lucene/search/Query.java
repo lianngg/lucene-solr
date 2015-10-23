@@ -41,20 +41,7 @@ import org.apache.lucene.index.IndexReader;
     <p>See also the family of {@link org.apache.lucene.search.spans Span Queries}
        and additional queries available in the <a href="{@docRoot}/../queries/overview-summary.html">Queries module</a>
 */
-public abstract class Query implements Cloneable {
-  private float boost = 1.0f;                     // query boost factor
-
-  /** Sets the boost for this query clause to <code>b</code>.  Documents
-   * matching this clause will (in addition to the normal weightings) have
-   * their score multiplied by <code>b</code>.
-   */
-  public void setBoost(float b) { boost = b; }
-
-  /** Gets the boost for this clause.  Documents matching
-   * this clause will (in addition to the normal weightings) have their score
-   * multiplied by <code>b</code>.   The boost is 1.0 by default.
-   */
-  public float getBoost() { return boost; }
+public abstract class Query {
 
   /** Prints a query to a string, with <code>field</code> assumed to be the 
    * default field and omitted.
@@ -87,32 +74,15 @@ public abstract class Query implements Cloneable {
     return this;
   }
 
-  /** Returns a clone of this query. */
-  @Override
-  public Query clone() {
-    try {
-      return (Query)super.clone();
-    } catch (CloneNotSupportedException e) {
-      throw new RuntimeException("Clone not supported: " + e.getMessage());
-    }
-  }
-
   @Override
   public int hashCode() {
-    return Float.floatToIntBits(getBoost()) ^ getClass().hashCode();
+    return getClass().hashCode();
   }
 
   @Override
   public boolean equals(Object obj) {
-    if (this == obj)
-      return true;
     if (obj == null)
       return false;
-    if (getClass() != obj.getClass())
-      return false;
-    Query other = (Query) obj;
-    if (Float.floatToIntBits(boost) != Float.floatToIntBits(other.boost))
-      return false;
-    return true;
+    return getClass() == obj.getClass();
   }
 }

@@ -3,20 +3,16 @@ package org.apache.solr.search;
 import java.io.IOException;
 import java.util.Map;
 
-import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.queries.function.ValueSource;
-import org.apache.lucene.search.ConstantScoreQuery;
 import org.apache.lucene.search.ConstantScoreScorer;
 import org.apache.lucene.search.ConstantScoreWeight;
 import org.apache.lucene.search.DocIdSet;
 import org.apache.lucene.search.DocIdSetIterator;
-import org.apache.lucene.search.Filter;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.Weight;
-import org.apache.lucene.util.Bits;
 
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -42,13 +38,12 @@ import org.apache.lucene.util.Bits;
  *
  * Experimental and subject to change.
  */
-public class SolrConstantScoreQuery extends ConstantScoreQuery implements ExtendedQuery {
+public class SolrConstantScoreQuery extends Query implements ExtendedQuery {
   private final Filter filter;
   boolean cache = true;  // cache by default
   int cost;
 
   public SolrConstantScoreQuery(Filter filter) {
-    super(filter);
     this.filter = filter;
   }
 
@@ -86,12 +81,6 @@ public class SolrConstantScoreQuery extends ConstantScoreQuery implements Extend
     return cost;
   }
 
-
-  @Override
-  public Query rewrite(IndexReader reader) throws IOException {
-    return this;
-  }
-
   protected class ConstantWeight extends ConstantScoreWeight {
     private Map context;
 
@@ -125,8 +114,7 @@ public class SolrConstantScoreQuery extends ConstantScoreQuery implements Extend
   /** Prints a user-readable version of this query. */
   @Override
   public String toString(String field) {
-    return ExtendedQueryBase.getOptionsString(this) + "ConstantScore(" + filter.toString()
-      + (getBoost()==1.0 ? ")" : "^" + getBoost());
+    return ExtendedQueryBase.getOptionsString(this) + "ConstantScore(" + filter.toString() + ")";
   }
 
   /** Returns true if <code>o</code> is equal to this. */

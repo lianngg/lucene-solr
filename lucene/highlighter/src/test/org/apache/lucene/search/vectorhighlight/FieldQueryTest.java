@@ -23,13 +23,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.BooleanClause.Occur;
 import org.apache.lucene.search.BooleanQuery;
+import org.apache.lucene.search.BoostQuery;
 import org.apache.lucene.search.ConstantScoreQuery;
-import org.apache.lucene.search.DocIdSet;
-import org.apache.lucene.search.Filter;
 import org.apache.lucene.search.PrefixQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.RegexpQuery;
@@ -38,7 +36,6 @@ import org.apache.lucene.search.TermRangeQuery;
 import org.apache.lucene.search.WildcardQuery;
 import org.apache.lucene.search.vectorhighlight.FieldQuery.QueryPhraseMap;
 import org.apache.lucene.search.vectorhighlight.FieldTermStack.TermInfo;
-import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
 
 public class FieldQueryTest extends AbstractTestCase {
@@ -63,22 +60,22 @@ public class FieldQueryTest extends AbstractTestCase {
     innerQuery.add(tq("E"), Occur.MUST);
     booleanQueryB.add(innerQuery.build(), Occur.MUST_NOT);
 
-    BooleanQuery booleanQuery = booleanQueryB.build();
-    booleanQuery.setBoost(boost);
+    Query booleanQuery = booleanQueryB.build();
+    booleanQuery = new BoostQuery(booleanQuery, boost);
     
     FieldQuery fq = new FieldQuery(booleanQuery, true, true );
     Set<Query> flatQueries = new HashSet<>();
-    fq.flatten(booleanQuery, reader, flatQueries);
+    fq.flatten(booleanQuery, reader, flatQueries, 1f);
     assertCollectionQueries( flatQueries, tq( boost, "A" ), tq( boost, "B" ), tq( boost, "C" ) );
   }
 
   public void testFlattenDisjunctionMaxQuery() throws Exception {
     initBoost();
     Query query = dmq( tq( "A" ), tq( "B" ), pqF( "C", "D" ) );
-    query.setBoost( boost );
+    query = new BoostQuery( query, boost );
     FieldQuery fq = new FieldQuery( query, true, true );
     Set<Query> flatQueries = new HashSet<>();
-    fq.flatten( query, reader, flatQueries );
+    fq.flatten( query, reader, flatQueries, 1f );
     assertCollectionQueries( flatQueries, tq( boost, "A" ), tq( boost, "B" ), pqF( boost, "C", "D" ) );
   }
 
@@ -87,12 +84,12 @@ public class FieldQueryTest extends AbstractTestCase {
     BooleanQuery.Builder booleanQueryB = new BooleanQuery.Builder();
     booleanQueryB.add(tq("A"), Occur.MUST);
     booleanQueryB.add(pqF("B", "C"), Occur.MUST);
-    BooleanQuery booleanQuery = booleanQueryB.build();
-    booleanQuery.setBoost(boost);
+    Query booleanQuery = booleanQueryB.build();
+    booleanQuery = new BoostQuery(booleanQuery, boost);
 
     FieldQuery fq = new FieldQuery(booleanQuery, true, true );
     Set<Query> flatQueries = new HashSet<>();
-    fq.flatten(booleanQuery, reader, flatQueries);
+    fq.flatten(booleanQuery, reader, flatQueries, 1f);
     assertCollectionQueries( flatQueries, tq( boost, "A" ), pqF( boost, "B", "C" ) );
   }
 
@@ -104,7 +101,7 @@ public class FieldQueryTest extends AbstractTestCase {
 
     FieldQuery fq = new FieldQuery( query.build(), true, true );
     Set<Query> flatQueries = new HashSet<>();
-    fq.flatten( query.build(), reader, flatQueries );
+    fq.flatten( query.build(), reader, flatQueries, 1f );
     assertCollectionQueries( flatQueries, tq( "AA" ), pqF( "BC", "CD" ), pqF( "EF", "FG", "GH" ) );
   }
 
@@ -112,7 +109,7 @@ public class FieldQueryTest extends AbstractTestCase {
     Query query = pqF( "A" );
     FieldQuery fq = new FieldQuery( query, true, true );
     Set<Query> flatQueries = new HashSet<>();
-    fq.flatten( query, reader, flatQueries );
+    fq.flatten( query, reader, flatQueries, 1f );
     assertCollectionQueries( flatQueries, tq( "A" ) );
   }
 
@@ -937,37 +934,13 @@ public class FieldQueryTest extends AbstractTestCase {
     new FieldQuery(q, reader, true, true );
   }
   
-  public void testFlattenFilteredQuery() throws Exception {
-    initBoost();
-    Filter filter = new Filter() {
-      @Override
-      public DocIdSet getDocIdSet(LeafReaderContext context, Bits acceptDocs)
-          throws IOException {
-        return null;
-      }
-      @Override
-      public String toString(String field) {
-        return "filterToBeFlattened";
-      }
-    };
-    Query query = new BooleanQuery.Builder()
-        .add(pqF( "A" ), Occur.MUST)
-        .add(filter, Occur.FILTER)
-        .build();
-    query.setBoost(boost);
-    FieldQuery fq = new FieldQuery( query, true, true );
-    Set<Query> flatQueries = new HashSet<>();
-    fq.flatten( query, reader, flatQueries );
-    assertCollectionQueries( flatQueries, tq( boost, "A" ) );
-  }
-  
   public void testFlattenConstantScoreQuery() throws Exception {
     initBoost();
     Query query = new ConstantScoreQuery(pqF( "A" ));
-    query.setBoost(boost);
+    query = new BoostQuery(query, boost);
     FieldQuery fq = new FieldQuery( query, true, true );
     Set<Query> flatQueries = new HashSet<>();
-    fq.flatten( query, reader, flatQueries );
+    fq.flatten( query, reader, flatQueries, 1f );
     assertCollectionQueries( flatQueries, tq( boost, "A" ) );
   }
   

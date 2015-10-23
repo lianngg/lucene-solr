@@ -28,7 +28,6 @@ import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.RandomIndexWriter;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.store.Directory;
-import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.LuceneTestCase;
 
@@ -73,13 +72,6 @@ public class TestNeedsScores extends LuceneTestCase {
     Query term = new TermQuery(new Term("field", "this"));
     Query constantScore = new ConstantScoreQuery(new AssertNeedsScores(term, false));
     assertEquals(5, searcher.search(constantScore, 5).totalHits);
-  }
-  
-  /** when converted to a filter */
-  public void testQueryWrapperFilter() throws Exception {
-    Query term = new TermQuery(new Term("field", "this"));
-    Filter filter = new QueryWrapperFilter(new AssertNeedsScores(term, false));
-    assertEquals(5, searcher.search(filter, 5).totalHits);
   }
   
   /** when not sorting by score */
@@ -143,7 +135,7 @@ public class TestNeedsScores extends LuceneTestCase {
     public Query rewrite(IndexReader reader) throws IOException {
       Query in2 = in.rewrite(reader);
       if (in2 == in) {
-        return this;
+        return super.rewrite(reader);
       } else {
         return new AssertNeedsScores(in2, value);
       }

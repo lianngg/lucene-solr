@@ -23,6 +23,7 @@ import java.util.Set;
 
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
+import org.apache.lucene.search.BoostQuery;
 import org.apache.lucene.search.DisjunctionMaxQuery;
 import org.apache.lucene.search.FuzzyQuery;
 import org.apache.lucene.search.Query;
@@ -516,13 +517,13 @@ public class TestExtendedDismaxParser extends SolrTestCaseJ4 {
         "//str[@name='parsedquery_toString'][.='+id:42']");
     
     assertQ(req("defType","edismax", "debugQuery","true", "rows","0", "uf","*^5.0", "q","id:42"),
-        "//str[@name='parsedquery_toString'][.='+id:42^5.0']");
+        "//str[@name='parsedquery_toString'][.='+(id:42)^5.0']");
     
     assertQ(req("defType","edismax", "debugQuery","true", "rows","0", "uf","*^2.0 id^5.0 -xyz", "q","name:foo"),
-        "//str[@name='parsedquery_toString'][.='+name:foo^2.0']");
+        "//str[@name='parsedquery_toString'][.='+(name:foo)^2.0']");
     
     assertQ(req("defType","edismax", "debugQuery","true", "rows","0", "uf","i*^5.0", "q","id:42"),
-        "//str[@name='parsedquery_toString'][.='+id:42^5.0']");
+        "//str[@name='parsedquery_toString'][.='+(id:42)^5.0']");
     
     
     assertQ(req("defType","edismax", "uf","-*", "q","cannons"),
@@ -753,19 +754,19 @@ public class TestExtendedDismaxParser extends SolrTestCaseJ4 {
             "ps", "3",
             "defType", "edismax",
             "debugQuery", "true"),
-        "//str[@name='parsedquery'][contains(.,'phrase_sw:\"zzzz xxxx cccc vvvv\"~1^10.0')]",
-        "//str[@name='parsedquery'][contains(.,'phrase_sw:\"zzzz xxxx cccc vvvv\"~2^20.0')]",
-        "//str[@name='parsedquery'][contains(.,'phrase_sw:\"zzzz xxxx cccc vvvv\"~3^30.0')]",
-        "//str[@name='parsedquery'][contains(.,'phrase_sw:\"zzzz xxxx\"~2^22.0')]",
-        "//str[@name='parsedquery'][contains(.,'phrase_sw:\"xxxx cccc\"~2^22.0')]",
-        "//str[@name='parsedquery'][contains(.,'phrase_sw:\"cccc vvvv\"~2^22.0')]",
-        "//str[@name='parsedquery'][contains(.,'phrase_sw:\"zzzz xxxx\"~3^33.0')]",
-        "//str[@name='parsedquery'][contains(.,'phrase_sw:\"xxxx cccc\"~3^33.0')]",
-        "//str[@name='parsedquery'][contains(.,'phrase_sw:\"cccc vvvv\"~3^33.0')]",        
-        "//str[@name='parsedquery'][contains(.,'phrase_sw:\"zzzz xxxx cccc\"~2^222.0')]",
-        "//str[@name='parsedquery'][contains(.,'phrase_sw:\"xxxx cccc vvvv\"~2^222.0')]",
-        "//str[@name='parsedquery'][contains(.,'phrase_sw:\"zzzz xxxx cccc\"~3^333.0')]",
-        "//str[@name='parsedquery'][contains(.,'phrase_sw:\"xxxx cccc vvvv\"~3^333.0')]"
+        "//str[@name='parsedquery'][contains(.,'(phrase_sw:\"zzzz xxxx cccc vvvv\"~1)^10.0')]",
+        "//str[@name='parsedquery'][contains(.,'(phrase_sw:\"zzzz xxxx cccc vvvv\"~2)^20.0')]",
+        "//str[@name='parsedquery'][contains(.,'(phrase_sw:\"zzzz xxxx cccc vvvv\"~3)^30.0')]",
+        "//str[@name='parsedquery'][contains(.,'(phrase_sw:\"zzzz xxxx\"~2)^22.0')]",
+        "//str[@name='parsedquery'][contains(.,'(phrase_sw:\"xxxx cccc\"~2)^22.0')]",
+        "//str[@name='parsedquery'][contains(.,'(phrase_sw:\"cccc vvvv\"~2)^22.0')]",
+        "//str[@name='parsedquery'][contains(.,'(phrase_sw:\"zzzz xxxx\"~3)^33.0')]",
+        "//str[@name='parsedquery'][contains(.,'(phrase_sw:\"xxxx cccc\"~3)^33.0')]",
+        "//str[@name='parsedquery'][contains(.,'(phrase_sw:\"cccc vvvv\"~3)^33.0')]",        
+        "//str[@name='parsedquery'][contains(.,'(phrase_sw:\"zzzz xxxx cccc\"~2)^222.0')]",
+        "//str[@name='parsedquery'][contains(.,'(phrase_sw:\"xxxx cccc vvvv\"~2)^222.0')]",
+        "//str[@name='parsedquery'][contains(.,'(phrase_sw:\"zzzz xxxx cccc\"~3)^333.0')]",
+        "//str[@name='parsedquery'][contains(.,'(phrase_sw:\"xxxx cccc vvvv\"~3)^333.0')]"
      );
 
     assertQ(
@@ -805,7 +806,7 @@ public class TestExtendedDismaxParser extends SolrTestCaseJ4 {
             "ps2", "4",
             "defType", "edismax",
             "debugQuery", "true"),
-        "//str[@name='parsedquery'][contains(.,'phrase_sw:\"zzzz xxxx\"~2^22.0')]"
+        "//str[@name='parsedquery'][contains(.,'(phrase_sw:\"zzzz xxxx\"~2)^22.0')]"
      );
 
     assertQ("phrase field queries spanning multiple fields should be within their own dismax queries",
@@ -1054,27 +1055,35 @@ public class TestExtendedDismaxParser extends SolrTestCaseJ4 {
 
   private boolean containsClause(Query query, String field, String value,
       int boost, boolean fuzzy) {
-    
+
+    float queryBoost = 1f;
+    if (query instanceof BoostQuery) {
+      BoostQuery bq = (BoostQuery) query;
+      query = bq.getQuery();
+      queryBoost = bq.getBoost();
+    }
+
     if(query instanceof BooleanQuery) {
       return containsClause((BooleanQuery)query, field, value, boost, fuzzy);
     }
     if(query instanceof DisjunctionMaxQuery) {
       return containsClause((DisjunctionMaxQuery)query, field, value, boost, fuzzy);
     }
+    if (boost != queryBoost) {
+      return false;
+    }
     if(query instanceof TermQuery && !fuzzy) {
-      return containsClause((TermQuery)query, field, value, boost);
+      return containsClause((TermQuery)query, field, value);
     }
     if(query instanceof FuzzyQuery && fuzzy) {
-      return containsClause((FuzzyQuery)query, field, value, boost);
+      return containsClause((FuzzyQuery)query, field, value);
     }
     return false;
   }
 
-  private boolean containsClause(FuzzyQuery query, String field, String value,
-      int boost) {
+  private boolean containsClause(FuzzyQuery query, String field, String value) {
     if(query.getTerm().field().equals(field) && 
-       query.getTerm().bytes().utf8ToString().equals(value) && 
-       query.getBoost() == boost) {
+       query.getTerm().bytes().utf8ToString().equals(value)) {
       return true;
     }
     return false;
@@ -1089,10 +1098,9 @@ public class TestExtendedDismaxParser extends SolrTestCaseJ4 {
     return false;
   }
   
-  private boolean containsClause(TermQuery query, String field, String value, int boost) {
+  private boolean containsClause(TermQuery query, String field, String value) {
     if(query.getTerm().field().equals(field) && 
-       query.getTerm().bytes().utf8ToString().equals(value) && 
-       query.getBoost() == boost) {
+       query.getTerm().bytes().utf8ToString().equals(value)) {
       return true;
     }
     return false;

@@ -134,7 +134,13 @@ public class SimpleNaiveBayesClassifier implements Classifier<BytesRef> {
     return doclist.subList(0, max);
   }
 
-  private List<ClassificationResult<BytesRef>> assignClassNormalizedList(String inputDocument) throws IOException {
+  /**
+   * Calculate probabilities for all classes for a given input text
+   * @param inputDocument the input text as a {@code String}
+   * @return a {@code List} of {@code ClassificationResult}, one for each existing class
+   * @throws IOException if assigning probabilities fails
+   */
+  protected List<ClassificationResult<BytesRef>> assignClassNormalizedList(String inputDocument) throws IOException {
     List<ClassificationResult<BytesRef>> dataList = new ArrayList<>();
 
     Terms terms = MultiFields.getTerms(leafReader, classFieldName);
@@ -143,8 +149,12 @@ public class SimpleNaiveBayesClassifier implements Classifier<BytesRef> {
     String[] tokenizedDoc = tokenizeDoc(inputDocument);
     int docsWithClassSize = countDocsWithClass();
     while ((next = termsEnum.next()) != null) {
-      double clVal = calculateLogPrior(next, docsWithClassSize) + calculateLogLikelihood(tokenizedDoc, next, docsWithClassSize);
-      dataList.add(new ClassificationResult<>(BytesRef.deepCopyOf(next), clVal));
+      if (next.length > 0) {
+        // We are passing the term to IndexSearcher so we need to make sure it will not change over time
+        next = BytesRef.deepCopyOf(next);
+        double clVal = calculateLogPrior(next, docsWithClassSize) + calculateLogLikelihood(tokenizedDoc, next, docsWithClassSize);
+        dataList.add(new ClassificationResult<>(next, clVal));
+      }
     }
 
     // normalization; the values transforms to a 0-1 range
@@ -212,6 +222,7 @@ public class SimpleNaiveBayesClassifier implements Classifier<BytesRef> {
           result.add(charTermAttribute.toString());
         }
         tokenStream.end();
+        tokenStream.close();
       }
     }
     return result.toArray(new String[result.size()]);

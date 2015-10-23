@@ -29,7 +29,6 @@ import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.search.BooleanClause.Occur;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.DocIdSetIterator;
-import org.apache.lucene.search.Filter;
 import org.apache.lucene.search.FilterCollector;
 import org.apache.lucene.search.LeafCollector;
 import org.apache.lucene.search.Query;
@@ -62,6 +61,7 @@ import org.apache.solr.schema.SchemaField;
 import org.apache.solr.schema.TrieField;
 import org.apache.solr.search.BitDocSet;
 import org.apache.solr.search.DocSet;
+import org.apache.solr.search.Filter;
 import org.apache.solr.search.Grouping;
 import org.apache.solr.search.HashDocSet;
 import org.apache.solr.search.Insanity;
@@ -268,7 +268,7 @@ public class SimpleFacets {
     DocSet base = searcher.getDocSet(qlist);
     if (rb.grouping() && rb.getGroupingSpec().isTruncateGroups()) {
       Grouping grouping = new Grouping(searcher, null, rb.getQueryCommand(), false, 0, false);
-      grouping.setGroupSort(rb.getGroupingSpec().getSortWithinGroup());
+      grouping.setWithinGroupSort(rb.getGroupingSpec().getSortWithinGroup());
       if (rb.getGroupingSpec().getFields().length > 0) {
         grouping.addFieldCommand(rb.getGroupingSpec().getFields()[0], req);
       } else if (rb.getGroupingSpec().getFunctions().length > 0) {

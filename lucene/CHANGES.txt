@@ -14,6 +14,7 @@ System Requirements
   all other modules with "compact2".  (Robert Muir, Uwe Schindler)
 
 New Features
+
 * LUCENE-6747: FingerprintFilter is a TokenFilter that outputs a single
   token which is a concatenation of the sorted and de-duplicated set of 
   input tokens. Useful for normalizing short text in clustering/linking 
@@ -26,6 +27,13 @@ New Features
 * LUCENE-6711: Use CollectionStatistics.docCount() for IDF and average field
   length computations, to avoid skew from documents that don't have the field.
   (Ahmet Arslan via Robert Muir)
+
+* LUCENE-6758: Use docCount+1 for DefaultSimilarity's IDF, so that queries 
+  containing nonexistent fields won't screw up querynorm. (Terry Smith, Robert Muir)
+
+* SOLR-7876: The QueryTimeout interface now has a isTimeoutEnabled method
+  that can return false to exit from ExitableDirectoryReader wrapping at
+  the point fields() is called. (yonik)
 
 API Changes
 
@@ -51,6 +59,18 @@ API Changes
 * LUCENE-6706: PayloadTermQuery and PayloadNearQuery have been removed.
   Instead, use PayloadScoreQuery to wrap any SpanQuery. (Alan Woodward)
 
+* LUCENE-6829: OfflineSorter, and the classes that use it (suggesters,
+  hunspell) now do all temporary file IO via Directory instead of
+  directly through java's temp dir.  Directory.createTempOutput
+  creates a uniquely named IndexOutput, and the new
+  IndexOutput.getName returns its name (Dawid Weiss, Robert Muir, Mike
+  McCandless)
+
+Changes in Runtime Behavior
+
+* LUCENE-6789: IndexSearcher's default Similarity is changed to BM25Similarity.
+  Use ClassicSimilarity to get the old vector space DefaultSimilarity. (Robert Muir)
+
 ======================= Lucene 5.4.0 =======================
 
 New Features
@@ -64,6 +84,39 @@ New Features
 * LUCENE-6737: Add DecimalDigitFilter which folds unicode digits to basic latin.
   (Robert Muir)
 
+* LUCENE-6699: Add integration of BKD tree and geo3d APIs to give
+  fast, very accurate query to find all indexed points within an
+  earth-surface shape (Karl Wright, Mike McCandless)
+
+* LUCENE-6838: Added IndexSearcher#getQueryCache and #getQueryCachingPolicy.
+  (Adrien Grand)
+
+API Changes
+
+* LUCENE-6590: Query.setBoost(), Query.getBoost() and Query.clone() are gone.
+  In order to apply boosts, you now need to wrap queries in a BoostQuery.
+  (Adrien Grand)
+
+* LUCENE-6716: SpanPayloadCheckQuery now takes a List<BytesRef> rather than
+  a Collection<byte[]>. (Alan Woodward)
+
+* LUCENE-6489: The various span payload queries have been moved to the queries
+  submodule, and PayloadSpanUtil is now in sandbox. (Alan Woodward)
+
+* LUCENE-6650: The spatial module no longer uses Filter in any way.  All
+  spatial Filters are now subclass Query.  The spatial heatmap/facet API
+  now accepts a Bits parameter to filter counts. (David Smiley, Adrien Grand)
+
+* LUCENE-6803: Deprecate sandbox Regexp Query. (Uwe Schindler)
+
+* LUCENE-6301: org.apache.lucene.search.Filter is now deprecated. You should use
+  Query objects instead of Filters, and the BooleanClause.Occur.FILTER clause in
+  order to let Lucene know that a Query should be used for filtering but not
+  scoring.
+
+* LUCENE-6939: SpanOrQuery.addClause is now deprecated, clauses should all be
+  provided at construction time. (Paul Elschot via Adrien Grand)
+
 Optimizations
 
 * LUCENE-6708: TopFieldCollector does not compute the score several times on the
@@ -72,7 +125,30 @@ Optimizations
 * LUCENE-6720: ValueSourceScorer, returned from
   FunctionValues.getRangeScorer(), now uses TwoPhaseIterator. (David Smiley)
 
+* LUCENE-6756: MatchAllDocsQuery now has a dedicated BulkScorer for better
+  performance when used as a top-level query. (Adrien Grand)
+
+* LUCENE-6746: DisjunctionMaxQuery, BoostingQuery and BoostedQuery now create
+  sub weights through IndexSearcher so that they can be cached. (Adrien Grand)
+
+* LUCENE-6754: Optimized IndexSearcher.count for the cases when it can use
+  index statistics instead of collecting all matches. (Adrien Grand)
+
+* LUCENE-6773: Nested conjunctions now iterate over documents as if clauses
+  were all at the same level. (Adrien Grand)
+
+* LUCENE-6777: Reuse BytesRef when visiting term ranges in
+  GeoPointTermsEnum to reduce GC pressure (Nick Knize via Mike
+  McCandless)
+
+* LUCENE-6779: Reduce memory allocated by CompressingStoredFieldsWriter to write
+  strings larger than 64kb by an amount equal to string's utf8 size.
+  (Dawid Weiss, Robert Muir, shalin)
+
 Bug Fixes
+
+* LUCENE-6817: ComplexPhraseQueryParser.ComplexPhraseQuery does not display 
+  slop in toString(). (Ahmet Arslan via Dawid Weiss)
 
 * LUCENE-6730: Hyper-parameter c is ignored in term frequency NormalizationH1.
   (Ahmet Arslan via Robert Muir)
@@ -83,16 +159,60 @@ Bug Fixes
   test data.  In addition, the performance of those filters was improved
   significantly.  (Uwe Schindler, Robert Muir)
 
-* LUCENE-6748: UsageTrackingQueryCachingPolicy no longer caches trivial queries
-  like MatchAllDocsQuery. (Adrien Grand)
+* LUCENE-6783: Removed side effects from FuzzyLikeThisQuery.rewrite.
+  (Adrien Grand)
+
+* LUCENE-6776: Fix geo3d math to handle randomly squashed planet
+  models (Karl Wright via Mike McCandless) 
+
+* LUCENE-6792: Fix TermsQuery.toString() to work with binary terms.
+  (Ruslan Muzhikov, Robert Muir)
+
+* LUCENE-5503: When Highlighter's WeightedSpanTermExtractor converts a
+  PhraseQuery to an equivalent SpanQuery, it would sometimes use a slop that is
+  too low (no highlight) or determine inOrder wrong.
+  (Tim Allison via David Smiley)
+
+* LUCENE-6790: Fix IndexWriter thread safety when one thread is
+  handling a tragic exception but another is still committing (Mike
+  McCandless)
+
+* LUCENE-6810: Upgrade to Spatial4j 0.5 -- fixes some edge-case bugs in the
+  spatial module. See https://github.com/locationtech/spatial4j/blob/master/CHANGES.md
+  (David Smiley)
+
+* LUCENE-6813: OfflineSorter no longer removes its output Path up
+  front, and instead opens it for write with the
+  StandardCopyOption.REPLACE_EXISTING to overwrite any prior file, so
+  that callers can safely use Files.createTempFile for the output.
+  This change also fixes OfflineSorter's default temp directory when
+  running tests to use mock filesystems so e.g. we detect file handle
+  leaks (Dawid Weiss, Robert Muir, Mike McCandless)
+
+* LUCENE-6813: RangeTreeWriter was failing to close all file handles
+  it opened, leading to intermittent failures on Windows (Dawid Weiss,
+  Robert Muir, Mike McCandless)
+
+* LUCENE-6826: Fix ClassCastException when merging a field that has no
+  terms because they were filtered out by e.g. a FilterCodecReader
+  (Trejkaz via Mike McCandless)
+
+* LUCENE-6823: LocalReplicator should use System.nanoTime as its clock
+  source for checking for expiration (Ishan Chattopadhyaya via Mike
+  McCandless)
 
 Other
+
+* LUCENE-6827: Use explicit capacity ArrayList instead of a LinkedList 
+  in MultiFieldQueryNodeProcessor. (Dawid Weiss).
+
+* LUCENE-6812: Upgrade RandomizedTesting to 2.1.17. (Dawid Weiss)
 
 * LUCENE-6174: Improve "ant eclipse" to select right JRE for building.
   (Uwe Schindler, Dawid Weiss)
 
-* LUCENE-6417: Upgrade ANTLR used in expressions module to version 4.5.
-  (Jack Conradson, Uwe Schindler)
+* LUCENE-6417, LUCENE-6830: Upgrade ANTLR used in expressions module
+  to version 4.5.1-1.  (Jack Conradson, Uwe Schindler)
 
 * LUCENE-6729: Upgrade ASM used in expressions module to version 5.0.4.
   (Uwe Schindler)
@@ -108,21 +228,50 @@ Other
 * LUCENE-6768: AbstractFirstPassGroupingCollector.groupSort private member
   is not needed. (Christine Poerschke)
 
+* LUCENE-6761: MatchAllDocsQuery's Scorers do not expose approximations
+  anymore. (Adrien Grand)
+
+* LUCENE-6775, LUCENE-6833: Improved MorfologikFilterFactory to allow 
+  loading of custom dictionaries from ResourceLoader. Upgraded 
+  Morfologik to version 2.0.1. The 'dictionary' attribute has been
+  reverted back and now points at the dictionary resource to be 
+  loaded instead of the default Polish dictionary.
+  (Uwe Schindler, Dawid Weiss)
+
+* LUCENE-6797: Make GeoCircle an interface and use a factory to create
+  it, to eventually handle degenerate cases (Karl Wright via Mike
+  McCandless)
+
+* LUCENE-6800: Use XYZSolidFactory to create XYZSolids (Karl Wright
+  via Mike McCandless)
+
+* LUCENE-6798: Geo3d now models degenerate (too tiny) circles as a
+  single point (Karl Wright via Mike McCandless)
+
+* LUCENE-6770: Add javadocs that FSDirectory canonicalizes the path.
+  (Uwe Schindler, Vladimir Kuzmin)
+
+* LUCENE-6795: Fix various places where code used
+  AccessibleObject#setAccessible() without a privileged block. Code
+  without a hard requirement to do reflection were rewritten. This
+  makes Lucene and Solr ready for Java 9 Jigsaw's module system, where
+  reflection on Java's runtime classes is very restricted.
+  (Robert Muir, Uwe Schindler)
+
+* LUCENE-6467: Simplify Query.equals. (Paul Elschot via Adrien Grand)
+
 Build
 
 * LUCENE-6732: Improve checker for invalid source patterns to also
   detect javadoc-style license headers. Use Groovy to implement the
   checks instead of plain Ant.  (Uwe Schindler)
 
+* LUCENE-6594: Update forbiddenapis to 2.0.  (Uwe Schindler)
+
 Tests
 
 * LUCENE-6752: Add Math#random() to forbiddenapis.  (Uwe Schindler,
   Mikhail Khludnev, Andrei Beliakov)
-
-* LUCENE-6760, SOLR-7958: Move TestUtil#randomWhitespace to the only
-  Solr test that is using it. The method is not useful for Lucene tests
-  (and easily breaks, e.g., in Java 9 caused by Unicode version updates).
-  (Uwe Schindler)
 
 Changes in Backwards Compatibility Policy
 
@@ -130,6 +279,38 @@ Changes in Backwards Compatibility Policy
   were fixed to now behave exactly like the original Snowball stemmer.
   If you have indexed text using those stemmers you may need to reindex.
   (Uwe Schindler, Robert Muir)
+
+Changes in Runtime Behavior
+
+* LUCENE-6772: MultiCollector now catches CollectionTerminatedException and
+  removes the collector that threw this exception from the list of sub
+  collectors to collect. (Adrien Grand)
+
+* LUCENE-6784: IndexSearcher's query caching is enabled by default. Run
+  indexSearcher.setQueryCache(null) to disable. (Adrien Grand)
+
+* LUCENE-6305: BooleanQuery.equals and hashcode do not depend on the order of
+  clauses anymore. (Adrien Grand)
+
+======================= Lucene 5.3.1 =======================
+
+Bug Fixes
+
+* LUCENE-6774: Remove classloader hack in MorfologikFilter. (Robert Muir,
+  Uwe Schindler)
+
+* LUCENE-6748: UsageTrackingQueryCachingPolicy no longer caches trivial queries
+  like MatchAllDocsQuery. (Adrien Grand)
+
+* LUCENE-6781: Fixed BoostingQuery to rewrite wrapped queries. (Adrien Grand)
+
+Tests
+
+* LUCENE-6760, SOLR-7958: Move TestUtil#randomWhitespace to the only
+  Solr test that is using it. The method is not useful for Lucene tests
+  (and easily breaks, e.g., in Java 9 caused by Unicode version updates).
+  (Uwe Schindler)
+
 
 ======================= Lucene 5.3.0 =======================
 

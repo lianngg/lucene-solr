@@ -17,14 +17,16 @@ package org.apache.lucene.store;
  * limitations under the License.
  */
 
-import java.io.FileOutputStream;
 import java.io.FilterOutputStream;
 import java.io.IOException;
+import java.nio.channels.ClosedChannelException; // javadoc @link
 import java.nio.file.DirectoryStream;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
+import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.nio.channels.ClosedChannelException; // javadoc @link
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -118,6 +120,12 @@ public abstract class FSDirectory extends BaseDirectory {
 
   /** Create a new FSDirectory for the named location (ctor for subclasses).
    * The directory is created at the named location if it does not yet exist.
+   * 
+   * <p>{@code FSDirectory} resolves the given Path to a canonical /
+   * real path to ensure it can correctly lock the index directory and no other process
+   * can interfere with changing possible symlinks to the index directory inbetween.
+   * If you want to use symlinks and change them dynamically, close all
+   * {@code IndexWriters} and create a new {@code FSDirecory} instance.
    * @param path the path of the directory
    * @param lockFactory the lock factory to use, or null for the default
    * ({@link NativeFSLockFactory});
@@ -136,6 +144,12 @@ public abstract class FSDirectory extends BaseDirectory {
    *  best implementation given the current environment.
    *  The directory returned uses the {@link NativeFSLockFactory}.
    *  The directory is created at the named location if it does not yet exist.
+   * 
+   * <p>{@code FSDirectory} resolves the given Path when calling this method to a canonical /
+   * real path to ensure it can correctly lock the index directory and no other process
+   * can interfere with changing possible symlinks to the index directory inbetween.
+   * If you want to use symlinks and change them dynamically, close all
+   * {@code IndexWriters} and create a new {@code FSDirecory} instance.
    *
    *  <p>Currently this returns {@link MMapDirectory} for Linux, MacOSX, Solaris,
    *  and Windows 64-bit JREs, {@link NIOFSDirectory} for other
@@ -209,9 +223,21 @@ public abstract class FSDirectory extends BaseDirectory {
   @Override
   public IndexOutput createOutput(String name, IOContext context) throws IOException {
     ensureOpen();
-
     ensureCanWrite(name);
     return new FSIndexOutput(name);
+  }
+
+  @Override
+  public IndexOutput createTempOutput(String prefix, String suffix, IOContext context) throws IOException {
+    ensureOpen();
+    while (true) {
+      String name = prefix + tempFileRandom.nextInt(Integer.MAX_VALUE) + "." + suffix;
+      try {
+        return new FSIndexOutput(name, StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.CREATE_NEW);
+      } catch (FileAlreadyExistsException faee) {
+        // Retry with next random name
+      }
+    }
   }
 
   protected void ensureCanWrite(String name) throws IOException {
@@ -256,13 +282,17 @@ public abstract class FSDirectory extends BaseDirectory {
 
   final class FSIndexOutput extends OutputStreamIndexOutput {
     /**
-     * The maximum chunk size is 8192 bytes, because {@link FileOutputStream} mallocs
+     * The maximum chunk size is 8192 bytes, because file channel mallocs
      * a native buffer outside of stack if the write buffer size is larger.
      */
     static final int CHUNK_SIZE = 8192;
     
     public FSIndexOutput(String name) throws IOException {
-      super("FSIndexOutput(path=\"" + directory.resolve(name) + "\")", new FilterOutputStream(Files.newOutputStream(directory.resolve(name))) {
+      this(name, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
+    }
+
+    FSIndexOutput(String name, OpenOption... options) throws IOException {
+      super("FSIndexOutput(path=\"" + directory.resolve(name) + "\")", name, new FilterOutputStream(Files.newOutputStream(directory.resolve(name), options)) {
         // This implementation ensures, that we never write more than CHUNK_SIZE bytes:
         @Override
         public void write(byte[] b, int offset, int length) throws IOException {

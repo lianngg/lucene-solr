@@ -61,7 +61,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
@@ -81,7 +80,9 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory implements Sol
   public static final String NRTCACHINGDIRECTORY_MAXMERGESIZEMB = "solr.hdfs.nrtcachingdirectory.maxmergesizemb";
   public static final String NRTCACHINGDIRECTORY_MAXCACHEMB = "solr.hdfs.nrtcachingdirectory.maxcachedmb";
   public static final String NUMBEROFBLOCKSPERBANK = "solr.hdfs.blockcache.blocksperbank";
-  
+
+  public static final String LOCALITYMETRICS_ENABLED = "solr.hdfs.locality.metrics.enabled";
+
   public static final String KERBEROS_ENABLED = "solr.hdfs.security.kerberos.enabled";
   public static final String KERBEROS_KEYTAB = "solr.hdfs.security.kerberos.keytabfile";
   public static final String KERBEROS_PRINCIPAL = "solr.hdfs.security.kerberos.principal";
@@ -182,7 +183,7 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory implements Sol
     }
     
     boolean blockCacheEnabled = getConfig(BLOCKCACHE_ENABLED, true);
-    boolean blockCacheGlobal = getConfig(BLOCKCACHE_GLOBAL, false); // default to false for back compat
+    boolean blockCacheGlobal = getConfig(BLOCKCACHE_GLOBAL, true);
     boolean blockCacheReadEnabled = getConfig(BLOCKCACHE_READ_ENABLED, true);
     
     final HdfsDirectory hdfsDir;
@@ -219,8 +220,9 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory implements Sol
       hdfsDir = new HdfsDirectory(new Path(path), lockFactory, conf);
       dir = hdfsDir;
     }
-    
-    LocalityHolder.reporter.registerDirectory(hdfsDir);
+    if (params.getBool(LOCALITYMETRICS_ENABLED, false)) {
+      LocalityHolder.reporter.registerDirectory(hdfsDir);
+    }
 
     boolean nrtCachingDirectory = getConfig(NRTCACHINGDIRECTORY_ENABLE, true);
     if (nrtCachingDirectory) {

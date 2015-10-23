@@ -23,7 +23,7 @@ Consult the LUCENE_CHANGES.txt file for additional, low level, changes in this r
 Versions of Major Components
 ---------------------
 Apache Tika 1.7
-Carrot2 3.10.3
+Carrot2 3.10.4
 Velocity 1.7 and Velocity Tools 2.0
 Apache UIMA 2.3.1
 Apache ZooKeeper 3.4.6
@@ -65,6 +65,28 @@ New Features
 
 * SOLR-7707: Add StreamExpression Support to RollupStream (Dennis Gove, Joel Bernstein)
 
+* SOLR-7903: Add the FacetStream to the Streaming API and wire it into the SQLHandler (Joel Bernstein)
+
+* SOLR-7986: JDBC Driver for SQL Interface (Uwe Schindler, Joel Bernstein)
+
+* SOLR-8038: Add the StatsStream to the Streaming API and wire it into the SQLHandler (Joel Bernstein)
+
+* SOLR-8086: Add support for SELECT DISTINCT queries to the SQL interface (Joel Bernstein) 
+
+* SOLR-7543: Basic graph traversal query
+  Example: {!graph from="node_id" to="edge_id"}id:doc_1
+  (Kevin Watters, yonik)
+
+
+Optimizations
+----------------------
+* SOLR-7876: Speed up queries and operations that use many terms when timeAllowed has not been
+  specified.  Speedups of up to 8% were observed.  (yonik)
+
+* SOLR-8037: Speed up creation of filters from term range queries (i.e. non-numeric range queries)
+  and use the filter cache for term range queries that are part of larger queries.  Some observed
+  speedups were up to 2.5x for production of filters, and up to 10x for query evaluation with
+  embedded term range queres that resulted in filter cache hits.  (yonik)
 
 Other Changes
 ----------------------
@@ -89,8 +111,14 @@ Other Changes
 * SOLR-7554: Add checks in Streams for incoming stream order (Dennis Gove, Joel Bernstein)
 
 * SOLR-7441: Improve overall robustness of the Streaming stack: Streaming API,
-             Streaming Expressions, Parallel SQL (Joel Bernstein)
+  Streaming Expressions, Parallel SQL (Joel Bernstein)
 
+* SOLR-8153: Support upper case and mixed case column identifiers in the SQL interface
+  (Joel Bernstein)
+
+* SOLR-8132: HDFSDirectoryFactory now defaults to using the global block cache. (Mark Miller)
+
+* SOLR-8114: in Grouping.java rename groupSort to withinGroupSort (Christine Poerschke)
 
 ==================  5.4.0 ==================
 
@@ -99,7 +127,7 @@ Consult the LUCENE_CHANGES.txt file for additional, low level, changes in this r
 Versions of Major Components
 ---------------------
 Apache Tika 1.7
-Carrot2 3.10.3
+Carrot2 3.10.4
 Velocity 1.7 and Velocity Tools 2.0
 Apache UIMA 2.3.1
 Apache ZooKeeper 3.4.6
@@ -139,9 +167,21 @@ New Features
 
 * SOLR-4316: Add a collections dropdown to angular admin UI (Upayavira, Shalin Shekhar Mangar)
 
-* SOLR-7795: Fold Interval Faceting into Range Faceting. Interval faceting becomes a part of
-  range faceting family and could be deprecated in the future.
-  (Hsuan-Tzu Liang via Tomás Fernández Löbbe)
+* SOLR-7915: Provide pluggable context tool support for VelocityResponseWriter (Erik Hatcher)
+
+* LUCENE-6795: SystemInfoHandler was improved to also show detailed operating
+  system statistics on IBM J9 virtual machines. It also no longer fails on Java 9
+  with Jigsaw module system.  (Uwe Schindler)
+
+* SOLR-8053: Basic auth support in SolrJ (noble)
+
+* SOLR-7995: Add a LIST command to ConfigSets API (Gregory Chanan)
+
+* SOLR-4388: In Angular UI, add a Collections UI when in cloud mode (Upayavira)
+
+* SOLR-7858: Add links between original and new Admin UIs (Upayavira)
+
+* SOLR-7888: Analyzing suggesters can now filter suggestions by a context field (Arcadius Ahouansou, janhoy)
 
 Bug Fixes
 ----------------------
@@ -150,7 +190,7 @@ Bug Fixes
   whitelist valid uses of currentTimeMillis (Ramkumar Aiyengar)
 
 * SOLR-7836: Possible deadlock when closing refcounted index writers.
-  (Jessica Cheng Mallet, Erick Erickson)
+  (Jessica Cheng Mallet, Erick Erickson, Mark Miller, yonik)
 
 * SOLR-7869: Overseer does not handle BadVersionException correctly and, in some cases,
   can go into an infinite loop if cluster state in ZooKeeper is modified externally.
@@ -163,20 +203,83 @@ Bug Fixes
 
 * SOLR-7941: multivalued params are concatenated when using config API (noble)
 
-* SOLR-7949: Resolve XSS issue in Admin UI stats page (David Chiu via janhoy)
-
 * SOLR-7956: There are interrupts on shutdown in places that can cause ChannelAlreadyClosed
-  exceptions which prevents proper closing of transaction logs. (Mark Miller)
-
-* SOLR-7972: Fix VelocityResponseWriter template encoding issue.
-  Templates must be UTF-8 encoded. (Erik Hatcher)
-
-* SOLR-7929: SimplePostTool (also bin/post) -filetypes "*" now works properly in 'web' mode (Erik Hatcher)
+  exceptions which prevents proper closing of transaction logs, interfere with the IndexWriter,
+  the hdfs client and other things. (Mark Miller, Scott Blum)
 
 * SOLR-7954: Fixed an integer overflow bug in the HyperLogLog code used by the 'cardinality' option
   of stats.field to prevent ArrayIndexOutOfBoundsException in a distributed search when a large precision
   is selected and a large number of values exist in each shard (hossman)
 
+* SOLR-7844: Zookeeper session expiry during shard leader election can cause multiple leaders.
+  (Mike Roberts, Mark Miller, Jessica Cheng)
+
+* SOLR-7984: wrong and misleading error message 'no default request handler is registered' (noble, hossman)
+
+* SOLR-8001: Fixed bugs in field(foo,min) and field(foo,max) when some docs have no values
+  (David Smiley, hossman)
+
+* SOLR-7819: ZK connection loss or session timeout do not stall indexing threads anymore. All activity
+  related to leader initiated recovery is performed by a dedicated LIR thread in the background.
+  (Ramkumar Aiyengar, shalin)
+
+* SOLR-7746: Ping requests stopped working with distrib=true in Solr 5.2.1.
+  (Alexey Serba, Michael Sun via Gregory Chanan)
+
+* SOLR-6547: ClassCastException in SolrResponseBase.getQTime on update response from CloudSolrClient
+  when parallelUpdates is enabled (default) and multiple docs are sent as a single update.
+  (kevin, hossman, shalin)
+
+* SOLR-8058: Fix the exclusion filter so that collections that start with js, css, img, tpl
+  can be accessed. (Upayavira, Steve Rowe, Anshum Gupta)
+
+* SOLR-8069: Ensure that only the valid ZooKeeper registered leader can put a replica into Leader 
+  Initiated Recovery. (Mark Miller, Jessica Cheng, Anshum Gupta)
+  
+* SOLR-8077: Replication can still cause index corruption. (Mark Miller)
+
+* SOLR-8104: Config API does not work for spellchecker (noble)
+
+* SOLR-8095: Allow disabling HDFS Locality Metrics and disable by default as it may have performance
+  implications on rapidly changing indexes. (Mike Drob via Mark Miller)
+  
+* SOLR-8085: Fix a variety of issues that can result in replicas getting out of sync. (yonik, Mark Miller)
+
+* SOLR-8094: HdfsUpdateLog should not replay buffered documents as a replacement to dropping them.
+  (Mark Miller)
+
+* SOLR-8075: Leader Initiated Recovery should not stop a leader that participated in an election with all
+  of it's replicas from becoming a valid leader. (Mark Miller)
+
+* SOLR-8072: Rebalance leaders feature does not set CloudDescriptor#isLeader to false when bumping leaders.
+  (Mark Miller)
+
+* SOLR-7666: Many small fixes to Angular UI (Upayavira, Alexandre Rafalovitch)
+
+* SOLR-7967: AddSchemaFieldsUpdateProcessorFactory does not check if the ConfigSet is immutable (Gregory Chanan)
+
+* SOLR-6188: Skip the automatic loading of resources in the "lib" subdirectory
+  by SolrResourceLoader, but only if we are loading resources from the solr
+  home directory.  Fixes the inability to use ICU analysis components with a
+  "solr." prefix on the classname. (Shawn Heisey)
+
+* SOLR-8130: Solr's hdfs safe mode detection does not catch all cases of being in safe mode.
+  (Mark Miller, Mike Drob)
+
+* SOLR-8128: Set v.locale specified locale for all LocaleConfig extending VelocityResponseWriter tools.
+  (Erik Hatcher)
+
+* SOLR-8152: Overseer Task Processor/Queue can miss responses, leading to timeouts.
+  (Gregory Chanan)
+
+* SOLR-8107: bin/solr -f should use exec to start the JVM (Martijn Koster via Timothy Potter)
+
+* SOLR-8050: Partial update on document with multivalued date field fails to parse date and can
+  also fail to remove dates in some cases. (Burkhard Buelte, Luc Vanlerberghe, shalin)
+
+* SOLR-8167: Authorization framework does not work with POST params (noble)
+
+  
 Optimizations
 ----------------------
 
@@ -192,9 +295,10 @@ Optimizations
   are more efficient especially when cluster has a mix of collections in stateFormat=1
   and stateFormat=2. (Scott Blum, shalin)
 
-* SOLR-7971: Reduce memory allocated by JavaBinCodec to encode large strings by an amount
-  equal to the string.length().
-  (yonik, Steve Rowe, shalin)
+* SOLR-7971: Reduce memory allocated by JavaBinCodec to encode small strings by an amount
+  equal to the string.length(). JavaBinCodec now uses a double pass approach to write strings
+  larger than 64KB to avoid allocating buffer memory equal to string's UTF8 size.
+  (yonik, Steve Rowe, Mikhail Khludnev, Noble Paul, shalin)
 
 * SOLR-7983: Utils.toUTF8 uses larger buffer than necessary for holding UTF8 data. (shalin)
 
@@ -203,9 +307,8 @@ Other Changes
 
 * SOLR-7969: Unavailable clustering engines should not fail the core. (Dawid Weiss)
 
-* SOLR-7790, SOLR-7792, SOLR-7791: Update Carrot2 clustering component to 
-  version 3.10.3. Upgrade HPPC library to version 0.7.1, morfologik-stemming 
-  to version 1.10.0. (Dawid Weiss)
+* SOLR-7790, SOLR-7791: Update Carrot2 clustering component to 
+  version 3.10.4. Upgrade HPPC library to version 0.7.1. (Dawid Weiss)
 
 * SOLR-7831: Start Scripts: Allow a configurable stack size [-Xss] (Steve Davids via Mark Miller)
 
@@ -234,6 +337,55 @@ Other Changes
 
 * SOLR-7966: Solr Admin UI Solr now sets the HTTP header X-Frame-Options to DENY
   to avoid clickjacking. (yonik)
+
+* SOLR-7999: SolrRequestParser tests no longer depend on external URLs
+  that may fail to work.  (Uwe Schindler)
+
+* SOLR-8034: Leader no longer puts replicas in recovery in case of a failed update, when minRF
+  isn't achieved. (Jessica Cheng, Timothy Potter, Anshum Gupta)
+
+* SOLR-8066: SolrCore.checkStale method doesn't restore interrupt status. (shalin)
+
+* SOLR-8068: Throw a SolrException if the core container has initialization errors or is
+  shutting down (Ishan Chattopadhyaya, Noble Paul, Anshum Gupta)
+
+* SOLR-8083: Convert the ZookeeperInfoServlet to a handler at /admin/zookeeper (noble)
+
+* SOLR-8025: remove unnecessary ResponseBuilder.getQueryCommand() calls (Christine Poerschke)
+
+* SOLR-8150: Fix build failure due to too much output from QueryResponseTest (janhoy)
+
+* SOLR-8151: OverseerCollectionMessageHandler was logging info data as WARN
+  (Alan Woodward)
+
+* SOLR-8116: SearchGroupsResultTransformer tweaks (String literals, list/map initialCapacity)
+  (Christine Poerschke)
+
+==================  5.3.1 ==================
+
+Bug Fixes
+----------------------
+
+* SOLR-7949: Resolve XSS issue in Admin UI stats page (David Chiu via janhoy)
+
+* SOLR-8000: security.json is not loaded on server start (noble)
+
+* SOLR-8004: RuleBasedAuthorization plugin does not work for the collection-admin-edit permission (noble)
+
+* SOLR-7972: Fix VelocityResponseWriter template encoding issue.
+  Templates must be UTF-8 encoded. (Erik Hatcher)
+
+* SOLR-7929: SimplePostTool (also bin/post) -filetypes "*" now works properly in 'web' mode (Erik Hatcher)
+
+* SOLR-7978: Fixed example/files update-script.js to be Java 7 and 8 compatible. (Erik Hatcher)
+
+* SOLR-7988: SolrJ could not make requests to handlers with '/admin/' prefix (noble , ludovic Boutros)
+
+* SOLR-7990: Use of timeAllowed can cause incomplete filters to be cached and incorrect
+  results to be returned on subsequent requests. (Erick Erickson, yonik)
+
+* SOLR-8041: Fix VelocityResponseWriter's $resource.get(key,baseName,locale) to use specified locale.
+  (Erik Hatcher)
 
 ==================  5.3.0 ==================
 
@@ -1086,6 +1238,8 @@ Other Changes
 
 * SOLR-7662: Refactored response writing to consolidate the logic in  one place (Noble Paul)
 
+* SOLR-7110: Added option to optimize JavaBinCodec to minimize string Object creation (Noble Paul)
+
 ==================  5.1.0 ==================
 
 Consult the LUCENE_CHANGES.txt file for additional, low level, changes in this release
@@ -1402,6 +1556,9 @@ Optimizations
 
  * SOLR-7239: improved performance of min & max in StatsComponent, as well as situations
    where local params disable all stats (hossman)
+
+ * SOLR-7050: realtime get should internally load only fields specified in fl.
+   (yonik, Noble Paul)
 
 Other Changes
 ----------------------

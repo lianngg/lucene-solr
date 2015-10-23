@@ -23,11 +23,7 @@ package org.apache.lucene.geo3d;
  *
  * @lucene.internal
  */
-public class GeoDegeneratePoint extends GeoPoint implements GeoBBox {
-  /** The latitude of the point */
-  protected final double latitude;
-  /** The longitude of the point */
-  protected final double longitude;
+public class GeoDegeneratePoint extends GeoPoint implements GeoBBox, GeoCircle {
   /** Current planet model, since we don't extend BasePlanetObject */
   protected final PlanetModel planetModel;
   /** Edge point is an area containing just this */
@@ -41,8 +37,6 @@ public class GeoDegeneratePoint extends GeoPoint implements GeoBBox {
   public GeoDegeneratePoint(final PlanetModel planetModel, final double lat, final double lon) {
     super(planetModel, lat, lon);
     this.planetModel = planetModel;
-    this.latitude = lat;
-    this.longitude = lon;
     this.edgePoints = new GeoPoint[]{this};
   }
 
@@ -74,11 +68,8 @@ public class GeoDegeneratePoint extends GeoPoint implements GeoBBox {
   }
 
   @Override
-  public Bounds getBounds(Bounds bounds) {
-    if (bounds == null)
-      bounds = new Bounds();
-    bounds.addPoint(latitude, longitude);
-    return bounds;
+  public void getBounds(Bounds bounds) {
+    bounds.addPoint(this);
   }
 
   @Override
@@ -97,16 +88,6 @@ public class GeoDegeneratePoint extends GeoPoint implements GeoBBox {
       return false;
     GeoDegeneratePoint other = (GeoDegeneratePoint) o;
     return super.equals(other) && other.latitude == latitude && other.longitude == longitude;
-  }
-
-  @Override
-  public int hashCode() {
-    int result = super.hashCode();
-    long temp = Double.doubleToLongBits(latitude);
-    result = 31 * result + (int) (temp ^ (temp >>> 32));
-    temp = Double.doubleToLongBits(longitude);
-    result = 31 * result + (int) (temp ^ (temp >>> 32));
-    return result;
   }
 
   @Override
@@ -145,5 +126,11 @@ public class GeoDegeneratePoint extends GeoPoint implements GeoBBox {
     return DISJOINT;
   }
 
+  @Override
+  public double computeDistance(final DistanceStyle distanceStyle, final double x, final double y, final double z) {
+    if (isWithin(x,y,z))
+      return 0.0;
+    return Double.MAX_VALUE;
+  }
 }
 

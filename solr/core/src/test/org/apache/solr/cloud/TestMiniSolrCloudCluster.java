@@ -205,7 +205,6 @@ public class TestMiniSolrCloudCluster extends LuceneTestCase {
           assertTrue(e.code() >= 500 && e.code() < 600);
         }
 
-        doExtraTests(miniCluster, zkClient, zkStateReader,cloudSolrClient, collectionName);
         // delete the collection we created earlier
         miniCluster.deleteCollection(collectionName);
         AbstractDistribZkTestBase.waitForCollectionToDisappear(collectionName, zkStateReader, true, true, 330);
@@ -215,9 +214,6 @@ public class TestMiniSolrCloudCluster extends LuceneTestCase {
       miniCluster.shutdown();
     }
   }
-
-  protected void doExtraTests(MiniSolrCloudCluster miniCluster, SolrZkClient zkClient, ZkStateReader zkStateReader, CloudSolrClient cloudSolrClient,
-                            String defaultCollName) throws Exception { /*do nothing*/ }
 
   @Test
   public void testErrorsInStartup() throws Exception {

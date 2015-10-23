@@ -38,6 +38,7 @@ import org.apache.lucene.queryparser.flexible.standard.config.StandardQueryConfi
 import org.apache.lucene.queryparser.flexible.standard.parser.ParseException;
 import org.apache.lucene.queryparser.util.QueryParserTestBase; // javadocs
 import org.apache.lucene.search.BooleanQuery;
+import org.apache.lucene.search.BoostQuery;
 import org.apache.lucene.search.FuzzyQuery;
 import org.apache.lucene.search.PhraseQuery;
 import org.apache.lucene.search.PrefixQuery;
@@ -236,13 +237,13 @@ public class TestPrecedenceQueryParser extends LuceneTestCase {
     assertTrue(getQuery("hello", null) instanceof TermQuery);
     assertTrue(getQuery("\"hello there\"", null) instanceof PhraseQuery);
 
-    assertQueryEquals("germ term^2.0", null, "germ term^2.0");
-    assertQueryEquals("(term)^2.0", null, "term^2.0");
+    assertQueryEquals("germ term^2.0", null, "germ (term)^2.0");
+    assertQueryEquals("(term)^2.0", null, "(term)^2.0");
     assertQueryEquals("(germ term)^2.0", null, "(germ term)^2.0");
-    assertQueryEquals("term^2.0", null, "term^2.0");
-    assertQueryEquals("term^2", null, "term^2.0");
-    assertQueryEquals("\"germ term\"^2.0", null, "\"germ term\"^2.0");
-    assertQueryEquals("\"term germ\"^2", null, "\"term germ\"^2.0");
+    assertQueryEquals("term^2.0", null, "(term)^2.0");
+    assertQueryEquals("term^2", null, "(term)^2.0");
+    assertQueryEquals("\"germ term\"^2.0", null, "(\"germ term\")^2.0");
+    assertQueryEquals("\"term germ\"^2", null, "(\"term germ\")^2.0");
 
     assertQueryEquals("(foo OR bar) AND (baz OR boo)", null,
         "+(foo bar) +(baz boo)");
@@ -278,7 +279,7 @@ public class TestPrecedenceQueryParser extends LuceneTestCase {
     assertQueryEquals("\"term germ\"~2 flork", null, "\"term germ\"~2 flork");
     assertQueryEquals("\"term\"~2", null, "term");
     assertQueryEquals("\" \"~2 germ", null, "germ");
-    assertQueryEquals("\"term germ\"~2^2", null, "\"term germ\"~2^2.0");
+    assertQueryEquals("\"term germ\"~2^2", null, "(\"term germ\"~2)^2.0");
   }
 
   public void testNumber() throws Exception {
@@ -295,16 +296,17 @@ public class TestPrecedenceQueryParser extends LuceneTestCase {
 
   public void testWildcard() throws Exception {
     assertQueryEquals("term*", null, "term*");
-    assertQueryEquals("term*^2", null, "term*^2.0");
+    assertQueryEquals("term*^2", null, "(term*)^2.0");
     assertQueryEquals("term~", null, "term~2");
     assertQueryEquals("term~0.7", null, "term~1");
-    assertQueryEquals("term~^3", null, "term~2^3.0");
-    assertQueryEquals("term^3~", null, "term~2^3.0");
+    assertQueryEquals("term~^3", null, "(term~2)^3.0");
+    assertQueryEquals("term^3~", null, "(term~2)^3.0");
     assertQueryEquals("term*germ", null, "term*germ");
-    assertQueryEquals("term*germ^3", null, "term*germ^3.0");
+    assertQueryEquals("term*germ^3", null, "(term*germ)^3.0");
 
     assertTrue(getQuery("term*", null) instanceof PrefixQuery);
-    assertTrue(getQuery("term*^2", null) instanceof PrefixQuery);
+    assertTrue(getQuery("term*^2", null) instanceof BoostQuery);
+    assertTrue(((BoostQuery) getQuery("term*^2", null)).getQuery() instanceof PrefixQuery);
     assertTrue(getQuery("term~", null) instanceof FuzzyQuery);
     assertTrue(getQuery("term~0.7", null) instanceof FuzzyQuery);
     FuzzyQuery fq = (FuzzyQuery) getQuery("term~0.7", null);
@@ -382,7 +384,7 @@ public class TestPrecedenceQueryParser extends LuceneTestCase {
     assertQueryEquals("[ a TO z ]", null, "[a TO z]");
     assertQueryEquals("{ a TO z}", null, "{a TO z}");
     assertQueryEquals("{ a TO z }", null, "{a TO z}");
-    assertQueryEquals("{ a TO z }^2.0", null, "{a TO z}^2.0");
+    assertQueryEquals("{ a TO z }^2.0", null, "({a TO z})^2.0");
     assertQueryEquals("[ a TO z] OR bar", null, "[a TO z] bar");
     assertQueryEquals("[ a TO z] AND bar", null, "+[a TO z] +bar");
     assertQueryEquals("( bar blar { a TO z}) ", null, "bar blar {a TO z}");
@@ -566,10 +568,10 @@ public class TestPrecedenceQueryParser extends LuceneTestCase {
     assertNotNull(q);
     q = qp.parse("\"hello\"^2.0", "field");
     assertNotNull(q);
-    assertEquals(q.getBoost(), (float) 2.0, (float) 0.5);
+    assertEquals(((BoostQuery) q).getBoost(), (float) 2.0, (float) 0.5);
     q = qp.parse("hello^2.0", "field");
     assertNotNull(q);
-    assertEquals(q.getBoost(), (float) 2.0, (float) 0.5);
+    assertEquals(((BoostQuery) q).getBoost(), (float) 2.0, (float) 0.5);
     q = qp.parse("\"on\"^1.0", "field");
     assertNotNull(q);
 

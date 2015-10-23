@@ -308,13 +308,13 @@ import org.apache.lucene.util.BytesRef;
  *      two term-queries with that same term and hence the computation would still be correct (although
  *      not very efficient).
  *      The default computation for <i>tf(t in d)</i> in
- *      {@link org.apache.lucene.search.similarities.DefaultSimilarity#tf(float) DefaultSimilarity} is:
+ *      {@link org.apache.lucene.search.similarities.ClassicSimilarity#tf(float) ClassicSimilarity} is:
  *
  *      <br>&nbsp;<br>
  *      <table cellpadding="2" cellspacing="2" border="0" style="width:auto; margin-left:auto; margin-right:auto" summary="term frequency computation">
  *        <tr>
  *          <td valign="middle" align="right" rowspan="1">
- *            {@link org.apache.lucene.search.similarities.DefaultSimilarity#tf(float) tf(t in d)} &nbsp; = &nbsp;
+ *            {@link org.apache.lucene.search.similarities.ClassicSimilarity#tf(float) tf(t in d)} &nbsp; = &nbsp;
  *          </td>
  *          <td valign="top" align="center" rowspan="1">
  *               frequency<sup><big>&frac12;</big></sup>
@@ -333,20 +333,20 @@ import org.apache.lucene.util.BytesRef;
  *      <i>idf(t)</i> appears for <i>t</i> in both the query and the document,
  *      hence it is squared in the equation.
  *      The default computation for <i>idf(t)</i> in
- *      {@link org.apache.lucene.search.similarities.DefaultSimilarity#idf(long, long) DefaultSimilarity} is:
+ *      {@link org.apache.lucene.search.similarities.ClassicSimilarity#idf(long, long) ClassicSimilarity} is:
  *
  *      <br>&nbsp;<br>
  *      <table cellpadding="2" cellspacing="2" border="0" style="width:auto; margin-left:auto; margin-right:auto" summary="inverse document frequency computation">
  *        <tr>
  *          <td valign="middle" align="right">
- *            {@link org.apache.lucene.search.similarities.DefaultSimilarity#idf(long, long) idf(t)}&nbsp; = &nbsp;
+ *            {@link org.apache.lucene.search.similarities.ClassicSimilarity#idf(long, long) idf(t)}&nbsp; = &nbsp;
  *          </td>
  *          <td valign="middle" align="center">
  *            1 + log <big>(</big>
  *          </td>
  *          <td valign="middle" align="center">
  *            <table summary="inverse document frequency computation">
- *               <tr><td align="center" style="text-align: center"><small>docCount</small></td></tr>
+ *               <tr><td align="center" style="text-align: center"><small>docCount+1</small></td></tr>
  *               <tr><td align="center" style="text-align: center">&ndash;&ndash;&ndash;&ndash;&ndash;&ndash;&ndash;&ndash;&ndash;</td></tr>
  *               <tr><td align="center" style="text-align: center"><small>docFreq+1</small></td></tr>
  *            </table>
@@ -381,14 +381,14 @@ import org.apache.lucene.util.BytesRef;
  *      This is a search time factor computed by the Similarity in effect at search time.
  *
  *      The default computation in
- *      {@link org.apache.lucene.search.similarities.DefaultSimilarity#queryNorm(float) DefaultSimilarity}
+ *      {@link org.apache.lucene.search.similarities.ClassicSimilarity#queryNorm(float) ClassicSimilarity}
  *      produces a <a href="http://en.wikipedia.org/wiki/Euclidean_norm#Euclidean_norm">Euclidean norm</a>:
  *      <br>&nbsp;<br>
  *      <table cellpadding="1" cellspacing="0" border="0" style="width:auto; margin-left:auto; margin-right:auto" summary="query normalization computation">
  *        <tr>
  *          <td valign="middle" align="right" rowspan="1">
  *            queryNorm(q)  &nbsp; = &nbsp;
- *            {@link org.apache.lucene.search.similarities.DefaultSimilarity#queryNorm(float) queryNorm(sumOfSquaredWeights)}
+ *            {@link org.apache.lucene.search.similarities.ClassicSimilarity#queryNorm(float) queryNorm(sumOfSquaredWeights)}
  *            &nbsp; = &nbsp;
  *          </td>
  *          <td valign="middle" align="center" rowspan="1">
@@ -414,7 +414,7 @@ import org.apache.lucene.util.BytesRef;
  *        <tr>
  *          <td valign="middle" align="right" rowspan="1">
  *            {@link org.apache.lucene.search.Weight#getValueForNormalization() sumOfSquaredWeights} &nbsp; = &nbsp;
- *            {@link org.apache.lucene.search.Query#getBoost() q.getBoost()} <sup><big>2</big></sup>
+ *            {@link org.apache.lucene.search.BoostQuery#getBoost() q.getBoost()} <sup><big>2</big></sup>
  *            &nbsp;&middot;&nbsp;
  *          </td>
  *          <td valign="bottom" align="center" rowspan="1" style="text-align: center">
@@ -443,13 +443,13 @@ import org.apache.lucene.util.BytesRef;
  *      is a search time boost of term <i>t</i> in the query <i>q</i> as
  *      specified in the query text
  *      (see <A HREF="{@docRoot}/../queryparser/org/apache/lucene/queryparser/classic/package-summary.html#Boosting_a_Term">query syntax</A>),
- *      or as set by application calls to
- *      {@link org.apache.lucene.search.Query#setBoost(float) setBoost()}.
+ *      or as set by wrapping with
+ *      {@link org.apache.lucene.search.BoostQuery#BoostQuery(org.apache.lucene.search.Query, float) BoostQuery}.
  *      Notice that there is really no direct API for accessing a boost of one term in a multi term query,
  *      but rather multi terms are represented in a query as multi
  *      {@link org.apache.lucene.search.TermQuery TermQuery} objects,
  *      and so the boost of a term in the query is accessible by calling the sub-query
- *      {@link org.apache.lucene.search.Query#getBoost() getBoost()}.
+ *      {@link org.apache.lucene.search.BoostQuery#getBoost() getBoost()}.
  *      <br>&nbsp;<br>
  *    </li>
  *
@@ -684,11 +684,11 @@ public abstract class TFIDFSimilarity extends Similarity {
   public abstract float scorePayload(int doc, int start, int end, BytesRef payload);
 
   @Override
-  public final SimWeight computeWeight(float queryBoost, CollectionStatistics collectionStats, TermStatistics... termStats) {
+  public final SimWeight computeWeight(CollectionStatistics collectionStats, TermStatistics... termStats) {
     final Explanation idf = termStats.length == 1
     ? idfExplain(collectionStats, termStats[0])
     : idfExplain(collectionStats, termStats);
-    return new IDFStats(collectionStats.field(), idf, queryBoost);
+    return new IDFStats(collectionStats.field(), idf);
   }
 
   @Override
@@ -738,16 +738,15 @@ public abstract class TFIDFSimilarity extends Similarity {
     /** The idf and its explanation */
     private final Explanation idf;
     private float queryNorm;
+    private float boost;
     private float queryWeight;
-    private final float queryBoost;
     private float value;
     
-    public IDFStats(String field, Explanation idf, float queryBoost) {
+    public IDFStats(String field, Explanation idf) {
       // TODO: Validate?
       this.field = field;
       this.idf = idf;
-      this.queryBoost = queryBoost;
-      this.queryWeight = idf.getValue() * queryBoost; // compute query weight
+      normalize(1f, 1f);
     }
 
     @Override
@@ -757,9 +756,10 @@ public abstract class TFIDFSimilarity extends Similarity {
     }
 
     @Override
-    public void normalize(float queryNorm, float topLevelBoost) {
-      this.queryNorm = queryNorm * topLevelBoost;
-      queryWeight *= this.queryNorm;              // normalize query weight
+    public void normalize(float queryNorm, float boost) {
+      this.boost = boost;
+      this.queryNorm = queryNorm;
+      queryWeight = queryNorm * boost * idf.getValue();
       value = queryWeight * idf.getValue();         // idf for document
     }
   }  
@@ -767,8 +767,8 @@ public abstract class TFIDFSimilarity extends Similarity {
   private Explanation explainQuery(IDFStats stats) {
     List<Explanation> subs = new ArrayList<>();
 
-    Explanation boostExpl = Explanation.match(stats.queryBoost, "boost");
-    if (stats.queryBoost != 1.0f)
+    Explanation boostExpl = Explanation.match(stats.boost, "boost");
+    if (stats.boost != 1.0f)
       subs.add(boostExpl);
     subs.add(stats.idf);
 

@@ -1,4 +1,3 @@
-// -*- c-basic-offset: 2 -*-
 package org.apache.lucene.analysis.morfologik;
 
 /*
@@ -19,10 +18,16 @@ package org.apache.lucene.analysis.morfologik;
  */
 
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.regex.Pattern;
 
-import morfologik.stemming.*;
+import morfologik.stemming.Dictionary;
+import morfologik.stemming.DictionaryLookup;
+import morfologik.stemming.IStemmer;
+import morfologik.stemming.WordData;
+import morfologik.stemming.polish.PolishStemmer;
 
 import org.apache.lucene.analysis.TokenFilter;
 import org.apache.lucene.analysis.TokenStream;
@@ -30,7 +35,7 @@ import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.KeywordAttribute;
 import org.apache.lucene.analysis.tokenattributes.PositionIncrementAttribute;
 import org.apache.lucene.analysis.util.CharacterUtils;
-import org.apache.lucene.util.*;
+import org.apache.lucene.util.CharsRefBuilder;
 
 /**
  * {@link TokenFilter} using Morfologik library to transform input tokens into lemma and
@@ -64,31 +69,22 @@ public class MorfologikFilter extends TokenFilter {
    * Creates a filter with the default (Polish) dictionary.
    */
   public MorfologikFilter(final TokenStream in) {
-    this(in, MorfologikFilterFactory.DEFAULT_DICTIONARY_RESOURCE);
+    this(in, new PolishStemmer().getDictionary());
   }
 
   /**
-   * Creates a filter with a given dictionary resource.
+   * Creates a filter with a given dictionary.
    *
    * @param in input token stream.
-   * @param dict Dictionary resource from classpath.
+   * @param dict Dictionary to use for stemming.
    */
-  public MorfologikFilter(final TokenStream in, final String dict) {
+  public MorfologikFilter(final TokenStream in, final Dictionary dict) {
     super(in);
     this.input = in;
-
-    // SOLR-4007: temporarily substitute context class loader to allow finding dictionary resources.
-    Thread me = Thread.currentThread();
-    ClassLoader cl = me.getContextClassLoader();
-    try {
-      me.setContextClassLoader(morfologik.stemming.Dictionary.class.getClassLoader());
-      this.stemmer = new DictionaryLookup(morfologik.stemming.Dictionary.getForLanguage(dict));
-      this.lemmaList = Collections.emptyList();
-    } finally {
-      me.setContextClassLoader(cl);
-    }  
+    this.stemmer = new DictionaryLookup(dict);
+    this.lemmaList = Collections.emptyList();
   }
-
+  
   /**
    * A pattern used to split lemma forms.
    */

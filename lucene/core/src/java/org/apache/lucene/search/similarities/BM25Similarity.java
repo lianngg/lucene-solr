@@ -35,12 +35,10 @@ import org.apache.lucene.util.SmallFloat;
  * Susan Jones, Micheline Hancock-Beaulieu, and Mike Gatford. Okapi at TREC-3.
  * In Proceedings of the Third <b>T</b>ext <b>RE</b>trieval <b>C</b>onference (TREC 1994).
  * Gaithersburg, USA, November 1994.
- * @lucene.experimental
  */
 public class BM25Similarity extends Similarity {
   private final float k1;
   private final float b;
-  // TODO: should we add a delta like sifaka.cs.uiuc.edu/~ylv2/pub/sigir11-bm25l.pdf ?
 
   /**
    * BM25 with the supplied parameter values.
@@ -54,8 +52,8 @@ public class BM25Similarity extends Similarity {
   
   /** BM25 with these default values:
    * <ul>
-   *   <li>{@code k1 = 1.2},
-   *   <li>{@code b = 0.75}.</li>
+   *   <li>{@code k1 = 1.2}</li>
+   *   <li>{@code b = 0.75}</li>
    * </ul>
    */
   public BM25Similarity() {
@@ -199,7 +197,7 @@ public class BM25Similarity extends Similarity {
   }
 
   @Override
-  public final SimWeight computeWeight(float queryBoost, CollectionStatistics collectionStats, TermStatistics... termStats) {
+  public final SimWeight computeWeight(CollectionStatistics collectionStats, TermStatistics... termStats) {
     Explanation idf = termStats.length == 1 ? idfExplain(collectionStats, termStats[0]) : idfExplain(collectionStats, termStats);
 
     float avgdl = avgFieldLength(collectionStats);
@@ -209,7 +207,7 @@ public class BM25Similarity extends Similarity {
     for (int i = 0; i < cache.length; i++) {
       cache[i] = k1 * ((1 - b) + b * decodeNormValue((byte)i) / avgdl);
     }
-    return new BM25Stats(collectionStats.field(), idf, queryBoost, avgdl, cache);
+    return new BM25Stats(collectionStats.field(), idf, avgdl, cache);
   }
 
   @Override
@@ -260,10 +258,8 @@ public class BM25Similarity extends Similarity {
     private final Explanation idf;
     /** The average document length. */
     private final float avgdl;
-    /** query's inner boost */
-    private final float queryBoost;
-    /** query's outer boost (only for explain) */
-    private float topLevelBoost;
+    /** query boost */
+    private float boost;
     /** weight (idf * boost) */
     private float weight;
     /** field name, for pulling norms */
@@ -271,26 +267,25 @@ public class BM25Similarity extends Similarity {
     /** precomputed norm[256] with k1 * ((1 - b) + b * dl / avgdl) */
     private final float cache[];
 
-    BM25Stats(String field, Explanation idf, float queryBoost, float avgdl, float cache[]) {
+    BM25Stats(String field, Explanation idf, float avgdl, float cache[]) {
       this.field = field;
       this.idf = idf;
-      this.queryBoost = queryBoost;
       this.avgdl = avgdl;
       this.cache = cache;
+      normalize(1f, 1f);
     }
 
     @Override
     public float getValueForNormalization() {
       // we return a TF-IDF like normalization to be nice, but we don't actually normalize ourselves.
-      final float queryWeight = idf.getValue() * queryBoost;
-      return queryWeight * queryWeight;
+      return weight * weight;
     }
 
     @Override
-    public void normalize(float queryNorm, float topLevelBoost) {
+    public void normalize(float queryNorm, float boost) {
       // we don't normalize with queryNorm at all, we just capture the top-level boost
-      this.topLevelBoost = topLevelBoost;
-      this.weight = idf.getValue() * queryBoost * topLevelBoost;
+      this.boost = boost;
+      this.weight = idf.getValue() * boost;
     } 
   }
 
@@ -315,7 +310,7 @@ public class BM25Similarity extends Similarity {
   }
 
   private Explanation explainScore(int doc, Explanation freq, BM25Stats stats, NumericDocValues norms) {
-    Explanation boostExpl = Explanation.match(stats.queryBoost * stats.topLevelBoost, "boost");
+    Explanation boostExpl = Explanation.match(stats.boost, "boost");
     List<Explanation> subs = new ArrayList<>();
     if (boostExpl.getValue() != 1.0f)
       subs.add(boostExpl);
@@ -336,7 +331,7 @@ public class BM25Similarity extends Similarity {
    * Returns the <code>k1</code> parameter
    * @see #BM25Similarity(float, float) 
    */
-  public float getK1() {
+  public final float getK1() {
     return k1;
   }
   
@@ -344,7 +339,7 @@ public class BM25Similarity extends Similarity {
    * Returns the <code>b</code> parameter 
    * @see #BM25Similarity(float, float) 
    */
-  public float getB() {
+  public final float getB() {
     return b;
   }
 }

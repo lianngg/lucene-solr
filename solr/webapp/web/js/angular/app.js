@@ -51,6 +51,14 @@ solrAdminApp.config([
         templateUrl: 'partials/cores.html',
         controller: 'CoreAdminController'
       }).
+      when('/~collections', {
+        templateUrl: 'partials/collections.html',
+        controller: 'CollectionsController'
+      }).
+      when('/~collections/:collection', {
+        templateUrl: 'partials/collections.html',
+        controller: 'CollectionsController'
+      }).
       when('/~threads', {
         templateUrl: 'partials/threads.html',
         controller: 'ThreadsController'
@@ -194,10 +202,8 @@ solrAdminApp.config([
             browser.locale = match[1] + '_' + match[3];
         }
 
-        var result= ( input || 0 ).toString().replace(/\B(?=(\d{3})+(?!\d))/g,
+        return ( input || 0 ).toString().replace(/\B(?=(\d{3})+(?!\d))/g,
             sep[ browser.locale ] || sep[ browser.language ] || sep['_']);
-        console.log(result);
-        return result;
     };
 })
 .filter('orderObjectBy', function() {
@@ -265,6 +271,9 @@ solrAdminApp.config([
     if (activeRequests == 0) {
       $rootScope.$broadcast('loadingStatusActive');
     }
+    if ($rootScope.exceptions[config.url]) {
+      delete $rootScope.exceptions[config.url];
+    }
     activeRequests++;
     config.timeout = 10000;
     return config || $q.when(config);
@@ -291,7 +300,7 @@ solrAdminApp.config([
     if (activeRequests == 0) {
       $rootScope.$broadcast('loadingStatusInactive');
     }
-    if (rejection.config.params.doNotIntercept) {
+    if (rejection.config.headers.doNotIntercept) {
         return rejection;
     }
     if (rejection.status === 0) {
@@ -302,7 +311,7 @@ solrAdminApp.config([
       var result = $http(rejection.config);
       return result;
     } else {
-      $rootScope.exception = rejection;
+      $rootScope.exceptions[rejection.config.url] = rejection.data.error;
     }
     return $q.reject(rejection);
   }
@@ -330,7 +339,11 @@ solrAdminApp.config([
 
 solrAdminApp.controller('MainController', function($scope, $route, $rootScope, $location, Cores, Collections, System, Ping, Constants) {
 
-  $rootScope.hideException = function() {delete $rootScope.exception};
+  $rootScope.exceptions={};
+
+  $rootScope.toggleException = function() {
+    $scope.showException=!$scope.showException;
+  };
 
   $scope.refresh = function() {
       $scope.cores = [];
@@ -350,6 +363,8 @@ solrAdminApp.controller('MainController', function($scope, $route, $rootScope, $
             $scope.currentCore = core;
         }
       }
+      $scope.showInitFailures = Object.keys(data.initFailures).length>0;
+      $scope.initFailures = data.initFailures;
     });
 
     System.get(function(data) {
@@ -396,6 +411,9 @@ solrAdminApp.controller('MainController', function($scope, $route, $rootScope, $
     $location.url("/" + collection.name + "/collection-overview")
   }
 
+  $scope.$on('$routeChangeStart', function() {
+      $rootScope.exceptions = {};
+  });
 });
 
 

@@ -18,22 +18,21 @@ package org.apache.lucene.rangetree;
  */
 
 import java.io.IOException;
-import java.nio.file.DirectoryStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Comparator;
 
 import org.apache.lucene.store.ByteArrayDataInput;
 import org.apache.lucene.store.ByteArrayDataOutput;
+import org.apache.lucene.store.Directory;
+import org.apache.lucene.store.IOContext;
 import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.util.ArrayUtil;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.BytesRefBuilder;
 import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.InPlaceMergeSorter;
-import org.apache.lucene.util.OfflineSorter.ByteSequencesWriter;
 import org.apache.lucene.util.OfflineSorter;
+import org.apache.lucene.util.OfflineSorter.ByteSequencesWriter;
 import org.apache.lucene.util.RamUsageEstimator;
 
 // TODO
@@ -77,11 +76,13 @@ class RangeTreeWriter {
   private final byte[] scratchBytes = new byte[BYTES_PER_DOC];
   private final ByteArrayDataOutput scratchBytesOutput = new ByteArrayDataOutput(scratchBytes);
 
-  private OfflineSorter.ByteSequencesWriter writer;
+  private final Directory tempDir;
+  private final String tempFileNamePrefix;
+
+  private OfflineSorter.ByteSequencesWriter offlineWriter;
   private GrowingHeapSliceWriter heapWriter;
 
-  private Path tempInput;
-  private Path tempDir;
+  private IndexOutput tempInput;
   private final int maxValuesInLeafNode;
   private final int maxValuesSortInHeap;
 
@@ -89,13 +90,15 @@ class RangeTreeWriter {
   private long globalMinValue = Long.MAX_VALUE;
   private long globalMaxValue = Long.MIN_VALUE;
 
-  public RangeTreeWriter() throws IOException {
-    this(DEFAULT_MAX_VALUES_IN_LEAF_NODE, DEFAULT_MAX_VALUES_SORT_IN_HEAP);
+  public RangeTreeWriter(Directory tempDir, String tempFileNamePrefix) throws IOException {
+    this(tempDir, tempFileNamePrefix, DEFAULT_MAX_VALUES_IN_LEAF_NODE, DEFAULT_MAX_VALUES_SORT_IN_HEAP);
   }
 
   // TODO: instead of maxValuesSortInHeap, change to maxMBHeap ... the mapping is non-obvious:
-  public RangeTreeWriter(int maxValuesInLeafNode, int maxValuesSortInHeap) throws IOException {
+  public RangeTreeWriter(Directory tempDir, String tempFileNamePrefix, int maxValuesInLeafNode, int maxValuesSortInHeap) throws IOException {
     verifyParams(maxValuesInLeafNode, maxValuesSortInHeap);
+    this.tempDir = tempDir;
+    this.tempFileNamePrefix = tempFileNamePrefix;
     this.maxValuesInLeafNode = maxValuesInLeafNode;
     this.maxValuesSortInHeap = maxValuesSortInHeap;
 
@@ -121,19 +124,16 @@ class RangeTreeWriter {
   /** If the current segment has too many points then we switchover to temp files / offline sort. */
   private void switchToOffline() throws IOException {
 
-    // OfflineSorter isn't thread safe, but our own private tempDir works around this:
-    tempDir = Files.createTempDirectory(OfflineSorter.defaultTempDir(), RangeTreeWriter.class.getSimpleName());
-
     // For each .add we just append to this input file, then in .finish we sort this input and resursively build the tree:
-    tempInput = tempDir.resolve("in");
-    writer = new OfflineSorter.ByteSequencesWriter(tempInput);
+    tempInput = tempDir.createTempOutput(tempFileNamePrefix, "rangetree", IOContext.DEFAULT);
+    offlineWriter = new OfflineSorter.ByteSequencesWriter(tempInput);
     for(int i=0;i<valueCount;i++) {
       scratchBytesOutput.reset(scratchBytes);
       scratchBytesOutput.writeLong(heapWriter.values[i]);
       scratchBytesOutput.writeVInt(heapWriter.docIDs[i]);
       scratchBytesOutput.writeVLong(i);
       // TODO: can/should OfflineSorter optimize the fixed-width case?
-      writer.write(scratchBytes, 0, scratchBytes.length);
+      offlineWriter.write(scratchBytes, 0, scratchBytes.length);
     }
 
     heapWriter = null;
@@ -141,14 +141,14 @@ class RangeTreeWriter {
 
   void add(long value, int docID) throws IOException {
     if (valueCount >= maxValuesSortInHeap) {
-      if (writer == null) {
+      if (offlineWriter == null) {
         switchToOffline();
       }
       scratchBytesOutput.reset(scratchBytes);
       scratchBytesOutput.writeLong(value);
       scratchBytesOutput.writeVInt(docID);
       scratchBytesOutput.writeVLong(valueCount);
-      writer.write(scratchBytes, 0, scratchBytes.length);
+      offlineWriter.write(scratchBytes, 0, scratchBytes.length);
     } else {
       // Not too many points added yet, continue using heap:
       heapWriter.append(value, valueCount, docID);
@@ -161,7 +161,7 @@ class RangeTreeWriter {
 
   /** Changes incoming {@link ByteSequencesWriter} file to to fixed-width-per-entry file, because we need to be able to slice
    *  as we recurse in {@link #build}. */
-  private SliceWriter convertToFixedWidth(Path in) throws IOException {
+  private SliceWriter convertToFixedWidth(String in) throws IOException {
     BytesRefBuilder scratch = new BytesRefBuilder();
     scratch.grow(BYTES_PER_DOC);
     BytesRef bytes = scratch.get();
@@ -171,7 +171,7 @@ class RangeTreeWriter {
     SliceWriter sortedWriter = null;
     boolean success = false;
     try {
-      reader = new OfflineSorter.ByteSequencesReader(in);
+      reader = new OfflineSorter.ByteSequencesReader(tempDir.openInput(in, IOContext.READONCE));
       sortedWriter = getWriter(valueCount);
       for (long i=0;i<valueCount;i++) {
         boolean result = reader.read(scratch);
@@ -251,7 +251,7 @@ class RangeTreeWriter {
     } else {
 
       // Offline sort:
-      assert tempDir != null;
+      assert tempInput != null;
 
       final ByteArrayDataInput reader = new ByteArrayDataInput();
       Comparator<BytesRef> cmp = new Comparator<BytesRef>() {
@@ -284,19 +284,18 @@ class RangeTreeWriter {
         }
       };
 
-      Path sorted = tempDir.resolve("sorted");
       boolean success = false;
+      OfflineSorter sorter = new OfflineSorter(tempDir, tempFileNamePrefix, cmp);
+      String sortedFileName = sorter.sort(tempInput.getName());
       try {
-        OfflineSorter sorter = new OfflineSorter(cmp, OfflineSorter.BufferSize.automatic(), tempDir, OfflineSorter.MAX_TEMPFILES);
-        sorter.sort(tempInput, sorted);
-        SliceWriter writer = convertToFixedWidth(sorted);
+        SliceWriter writer = convertToFixedWidth(sortedFileName);
         success = true;
         return writer;
       } finally {
         if (success) {
-          IOUtils.rm(sorted);
+          tempDir.deleteFile(sortedFileName);
         } else {
-          IOUtils.deleteFilesIgnoringExceptions(sorted);
+          IOUtils.deleteFilesIgnoringExceptions(tempDir, sortedFileName);
         }
       }
     }
@@ -305,8 +304,8 @@ class RangeTreeWriter {
   /** Writes the 1d BKD tree to the provided {@link IndexOutput} and returns the file offset where index was written. */
   public long finish(IndexOutput out) throws IOException {
 
-    if (writer != null) {
-      writer.close();
+    if (offlineWriter != null) {
+      offlineWriter.close();
     }
 
     if (valueCount == 0) {
@@ -319,7 +318,7 @@ class RangeTreeWriter {
     long innerNodeCount = 1;
 
     while (countPerLeaf > maxValuesInLeafNode) {
-      countPerLeaf /= 2;
+      countPerLeaf = (countPerLeaf+1)/2;
       innerNodeCount *= 2;
     }
 
@@ -361,14 +360,18 @@ class RangeTreeWriter {
     } finally {
       if (success) {
         sortedWriter.destroy();
-        IOUtils.rm(tempInput);
+        if (tempInput != null) {
+          tempDir.deleteFile(tempInput.getName());
+        }
       } else {
         try {
           sortedWriter.destroy();
         } catch (Throwable t) {
           // Suppress to keep throwing original exc
         }
-        IOUtils.deleteFilesIgnoringExceptions(tempInput);
+        if (tempInput != null) {
+          IOUtils.deleteFilesIgnoringExceptions(tempDir, tempInput.getName());
+        }
       }
     }
 
@@ -387,26 +390,7 @@ class RangeTreeWriter {
     }
     out.writeLong(globalMaxValue);
 
-    if (tempDir != null) {
-      // If we had to go offline, we should have removed all temp files we wrote:
-      assert directoryIsEmpty(tempDir);
-      IOUtils.rm(tempDir);
-    }
-
     return indexFP;
-  }
-
-  // Called only from assert
-  private boolean directoryIsEmpty(Path in) {
-    try (DirectoryStream<Path> dir = Files.newDirectoryStream(in)) {
-      for (Path path : dir) {
-        assert false: "dir=" + in + " still has file=" + path;
-        return false;
-      }
-    } catch (IOException ioe) {
-      // Just ignore: we are only called from assert
-    }
-    return true;
   }
 
   /** Sliced reference to points in an OfflineSorter.ByteSequencesWriter file. */
@@ -464,12 +448,15 @@ class RangeTreeWriter {
       // Cutover to heap:
       SliceWriter writer = new HeapSliceWriter((int) count);
       SliceReader reader = source.writer.getReader(source.start);
-      for(int i=0;i<count;i++) {
-        boolean hasNext = reader.next();
-        assert hasNext;
-        writer.append(reader.value(), reader.ord(), reader.docID());
+      try {
+        for(int i=0;i<count;i++) {
+          boolean hasNext = reader.next();
+          assert hasNext;
+          writer.append(reader.value(), reader.ord(), reader.docID());
+        }
+      } finally {
+        IOUtils.close(reader, writer);
       }
-      writer.close();
       source = new PathSlice(writer, 0, count);
     }
 
@@ -587,7 +574,7 @@ class RangeTreeWriter {
     if (count < maxValuesSortInHeap) {
       return new HeapSliceWriter((int) count);
     } else {
-      return new OfflineSliceWriter(tempDir, count);
+      return new OfflineSliceWriter(tempDir, tempFileNamePrefix, count);
     }
   }
 }

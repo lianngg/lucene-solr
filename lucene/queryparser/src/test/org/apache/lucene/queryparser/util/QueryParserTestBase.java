@@ -290,7 +290,7 @@ public abstract class QueryParserTestBase extends LuceneTestCase {
     expectedB.add(new TermQuery(new Term("field", "中")), BooleanClause.Occur.SHOULD);
     expectedB.add(new TermQuery(new Term("field", "国")), BooleanClause.Occur.SHOULD);
     Query expected = expectedB.build();
-    expected.setBoost(0.5f);
+    expected = new BoostQuery(expected, 0.5f);
 
     assertEquals(expected, getQuery("中国^0.5", analyzer));
   }
@@ -308,8 +308,8 @@ public abstract class QueryParserTestBase extends LuceneTestCase {
     // individual CJK chars as terms
     SimpleCJKAnalyzer analyzer = new SimpleCJKAnalyzer();
     
-    PhraseQuery expected = new PhraseQuery("field", "中", "国");
-    expected.setBoost(0.5f);
+    Query expected = new PhraseQuery("field", "中", "国");
+    expected = new BoostQuery(expected, 0.5f);
     
     assertEquals(expected, getQuery("\"中国\"^0.5", analyzer));
   }
@@ -368,13 +368,13 @@ public abstract class QueryParserTestBase extends LuceneTestCase {
     assertTrue(getQuery("hello") instanceof TermQuery);
     assertTrue(getQuery("\"hello there\"") instanceof PhraseQuery);
 
-    assertQueryEquals("germ term^2.0", null, "germ term^2.0");
-    assertQueryEquals("(term)^2.0", null, "term^2.0");
+    assertQueryEquals("germ term^2.0", null, "germ (term)^2.0");
+    assertQueryEquals("(term)^2.0", null, "(term)^2.0");
     assertQueryEquals("(germ term)^2.0", null, "(germ term)^2.0");
-    assertQueryEquals("term^2.0", null, "term^2.0");
-    assertQueryEquals("term^2", null, "term^2.0");
-    assertQueryEquals("\"germ term\"^2.0", null, "\"germ term\"^2.0");
-    assertQueryEquals("\"term germ\"^2", null, "\"term germ\"^2.0");
+    assertQueryEquals("term^2.0", null, "(term)^2.0");
+    assertQueryEquals("term^2", null, "(term)^2.0");
+    assertQueryEquals("\"germ term\"^2.0", null, "(\"germ term\")^2.0");
+    assertQueryEquals("\"term germ\"^2", null, "(\"term germ\")^2.0");
 
     assertQueryEquals("(foo OR bar) AND (baz OR boo)", null,
                       "+(foo bar) +(baz boo)");
@@ -415,7 +415,7 @@ public abstract class QueryParserTestBase extends LuceneTestCase {
     assertQueryEquals("\"term germ\"~2 flork", null, "\"term germ\"~2 flork");
     assertQueryEquals("\"term\"~2", null, "term");
     assertQueryEquals("\" \"~2 germ", null, "germ");
-    assertQueryEquals("\"term germ\"~2^2", null, "\"term germ\"~2^2.0");
+    assertQueryEquals("\"term germ\"~2^2", null, "(\"term germ\"~2)^2.0");
   }
 
   public void testNumber() throws Exception {
@@ -432,17 +432,18 @@ public abstract class QueryParserTestBase extends LuceneTestCase {
 
   public void testWildcard() throws Exception {
     assertQueryEquals("term*", null, "term*");
-    assertQueryEquals("term*^2", null, "term*^2.0");
+    assertQueryEquals("term*^2", null, "(term*)^2.0");
     assertQueryEquals("term~", null, "term~2");
     assertQueryEquals("term~1", null, "term~1");
     assertQueryEquals("term~0.7", null, "term~1");
-    assertQueryEquals("term~^3", null, "term~2^3.0");
-    assertQueryEquals("term^3~", null, "term~2^3.0");
+    assertQueryEquals("term~^3", null, "(term~2)^3.0");
+    assertQueryEquals("term^3~", null, "(term~2)^3.0");
     assertQueryEquals("term*germ", null, "term*germ");
-    assertQueryEquals("term*germ^3", null, "term*germ^3.0");
+    assertQueryEquals("term*germ^3", null, "(term*germ)^3.0");
 
     assertTrue(getQuery("term*") instanceof PrefixQuery);
-    assertTrue(getQuery("term*^2") instanceof PrefixQuery);
+    assertTrue(getQuery("term*^2") instanceof BoostQuery);
+    assertTrue(((BoostQuery) getQuery("term*^2")).getQuery() instanceof PrefixQuery);
     assertTrue(getQuery("term~") instanceof FuzzyQuery);
     assertTrue(getQuery("term~0.7") instanceof FuzzyQuery);
     FuzzyQuery fq = (FuzzyQuery)getQuery("term~0.7");
@@ -523,7 +524,7 @@ public abstract class QueryParserTestBase extends LuceneTestCase {
   }
 
   public void testQPA() throws Exception {
-    assertQueryEquals("term term^3.0 term", qpAnalyzer, "term term^3.0 term");
+    assertQueryEquals("term term^3.0 term", qpAnalyzer, "term (term)^3.0 term");
     assertQueryEquals("term stop^3.0 term", qpAnalyzer, "term term");
     
     assertQueryEquals("term term term", qpAnalyzer, "term term term");
@@ -584,7 +585,7 @@ public abstract class QueryParserTestBase extends LuceneTestCase {
     assertQueryEquals("[ a TO z ]", null, "[a TO z]");
     assertQueryEquals("{ a TO z}", null, "{a TO z}");
     assertQueryEquals("{ a TO z }", null, "{a TO z}");
-    assertQueryEquals("{ a TO z }^2.0", null, "{a TO z}^2.0");
+    assertQueryEquals("{ a TO z }^2.0", null, "({a TO z})^2.0");
     assertQueryEquals("[ a TO z] OR bar", null, "[a TO z] bar");
     assertQueryEquals("[ a TO z] AND bar", null, "+[a TO z] +bar");
     assertQueryEquals("( bar blar { a TO z}) ", null, "bar blar {a TO z}");
@@ -867,10 +868,10 @@ public abstract class QueryParserTestBase extends LuceneTestCase {
     assertNotNull(q);
     q = getQuery("\"hello\"^2.0",qp);
     assertNotNull(q);
-    assertEquals(q.getBoost(), (float) 2.0, (float) 0.5);
+    assertEquals(((BoostQuery) q).getBoost(), (float) 2.0, (float) 0.5);
     q = getQuery("hello^2.0",qp);
     assertNotNull(q);
-    assertEquals(q.getBoost(), (float) 2.0, (float) 0.5);
+    assertEquals(((BoostQuery) q).getBoost(), (float) 2.0, (float) 0.5);
     q = getQuery("\"on\"^1.0",qp);
     assertNotNull(q);
 
@@ -880,7 +881,7 @@ public abstract class QueryParserTestBase extends LuceneTestCase {
     // "the" is a stop word so the result is an empty query:
     assertNotNull(q);
     assertEquals("", q.toString());
-    assertEquals(1.0f, q.getBoost(), 0.01f);
+    assertFalse(q instanceof BoostQuery);
   }
 
   public void assertParseException(String queryString) throws Exception {
@@ -972,13 +973,13 @@ public abstract class QueryParserTestBase extends LuceneTestCase {
     assertEquals(q, getQuery("/[a-z][123]/",qp));
     qp.setLowercaseExpandedTerms(true);
     assertEquals(q, getQuery("/[A-Z][123]/",qp));
-    q.setBoost(0.5f);
-    assertEquals(q, getQuery("/[A-Z][123]/^0.5",qp));
+    assertEquals(new BoostQuery(q, 0.5f), getQuery("/[A-Z][123]/^0.5",qp));
     qp.setMultiTermRewriteMethod(MultiTermQuery.SCORING_BOOLEAN_REWRITE);
     q.setRewriteMethod(MultiTermQuery.SCORING_BOOLEAN_REWRITE);
-    assertTrue(getQuery("/[A-Z][123]/^0.5",qp) instanceof RegexpQuery);
-    assertEquals(MultiTermQuery.SCORING_BOOLEAN_REWRITE, ((RegexpQuery)getQuery("/[A-Z][123]/^0.5",qp)).getRewriteMethod());
-    assertEquals(q, getQuery("/[A-Z][123]/^0.5",qp));
+    assertTrue(getQuery("/[A-Z][123]/^0.5",qp) instanceof BoostQuery);
+    assertTrue(((BoostQuery) getQuery("/[A-Z][123]/^0.5",qp)).getQuery() instanceof RegexpQuery);
+    assertEquals(MultiTermQuery.SCORING_BOOLEAN_REWRITE, ((RegexpQuery) ((BoostQuery) getQuery("/[A-Z][123]/^0.5",qp)).getQuery()).getRewriteMethod());
+    assertEquals(new BoostQuery(q, 0.5f), getQuery("/[A-Z][123]/^0.5",qp));
     qp.setMultiTermRewriteMethod(MultiTermQuery.CONSTANT_SCORE_REWRITE);
     
     Query escaped = new RegexpQuery(new Term("field", "[a-z]\\/[123]"));
@@ -1028,6 +1029,8 @@ public abstract class QueryParserTestBase extends LuceneTestCase {
     assertTrue("result is not a TermQuery", result instanceof TermQuery);
     result = getQuery("(fieldX:xxxxx OR fieldy:xxxxxxxx)^2 AND (fieldx:the OR fieldy:foo)",qp);
     assertNotNull("result is null and it shouldn't be", result);
+    assertTrue("result is not a BoostQuery", result instanceof BoostQuery);
+    result = ((BoostQuery) result).getQuery();
     assertTrue("result is not a BooleanQuery", result instanceof BooleanQuery);
     if (VERBOSE) System.out.println("Result: " + result);
     assertTrue(((BooleanQuery) result).clauses().size() + " does not equal: " + 2, ((BooleanQuery) result).clauses().size() == 2);
@@ -1269,8 +1272,8 @@ public abstract class QueryParserTestBase extends LuceneTestCase {
     assertEquals(new MatchAllDocsQuery(), getQuery(new MatchAllDocsQuery().toString(),qp));
 
     // test parsing with non-default boost
-    MatchAllDocsQuery query = new MatchAllDocsQuery();
-    query.setBoost(2.3f);
+    Query query = new MatchAllDocsQuery();
+    query = new BoostQuery(query, 2.3f);
     assertEquals(query, getQuery(query.toString(),qp));
     setDefaultField(oldDefaultField);
   }

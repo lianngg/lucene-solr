@@ -33,7 +33,6 @@ import org.apache.lucene.search.ConstantScoreScorer;
 import org.apache.lucene.search.ConstantScoreWeight;
 import org.apache.lucene.search.DocIdSet;
 import org.apache.lucene.search.DocIdSetIterator;
-import org.apache.lucene.search.Filter;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.Scorer;
@@ -147,7 +146,7 @@ class JoinQuery extends Query {
   @Override
   public Query rewrite(IndexReader reader) throws IOException {
     // don't rewrite the subQuery
-    return this;
+    return super.rewrite(reader);
   }
 
   @Override
@@ -515,7 +514,6 @@ class JoinQuery extends Query {
     JoinQuery other = (JoinQuery)o;
     return this.fromField.equals(other.fromField)
            && this.toField.equals(other.toField)
-           && this.getBoost() == other.getBoost()
            && this.q.equals(other.q)
            && (this.fromIndex == other.fromIndex || this.fromIndex != null && this.fromIndex.equals(other.fromIndex))
            && this.fromCoreOpenTime == other.fromCoreOpenTime
